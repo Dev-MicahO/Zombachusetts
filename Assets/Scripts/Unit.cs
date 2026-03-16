@@ -9,6 +9,8 @@ public class Unit : MonoBehaviour
 
     public int attackPower = 20;
 
+    public bool isDefending = false;
+
     void Start()
     {
         currentHealth = maxHealth;

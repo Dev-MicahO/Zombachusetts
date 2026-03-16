@@ -11,7 +11,8 @@ GameObject:
   - component: {fileID: 8090101204090198729}
   - component: {fileID: 5884822651730011593}
   - component: {fileID: 1481781131234353055}
-  - component: {fileID: 3007167991101486119}
+  - component: {fileID: 7870280338168222920}
+  - component: {fileID: 6988938769903422798}
   m_Layer: 5
   m_Name: DamageText
   m_TagString: Untagged
@@ -138,7 +139,7 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!114 &3007167991101486119
+--- !u!114 &7870280338168222920
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -153,3 +154,15 @@ MonoBehaviour:
   textMesh: {fileID: 1481781131234353055}
   moveSpeed: 50
   lifetime: 1
+--- !u!225 &6988938769903422798
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 439283630530710251}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
