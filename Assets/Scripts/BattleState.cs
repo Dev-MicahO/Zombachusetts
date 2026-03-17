@@ -7,5 +7,6 @@ public enum BattleState
     ENEMYTURN,
     BUSY,
     WON,
-    LOST
+    LOST,
+    FLED
 }

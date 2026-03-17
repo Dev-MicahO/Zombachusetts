@@ -7,13 +7,19 @@ public class Unit : MonoBehaviour
     public int maxHealth = 100;
     public int currentHealth;
 
-    public int attackPower = 20;
+    public int minDamage = 15;
+    public int maxDamage = 25;
 
     public bool isDefending = false;
 
-    void Start()
+    void Awake()
     {
         currentHealth = maxHealth;
+    }
+    
+    public int GetDamage()
+    {
+        return Random.Range(minDamage, maxDamage + 1);
     }
 
     public void TakeDamage(int damage)

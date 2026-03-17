@@ -10,6 +10,8 @@ public class BattleManager : MonoBehaviour
     // Units
     public Unit playerUnit;
     public Unit enemyUnit;
+    public Unit zombieUnit;
+    public Unit bossUnit;
 
     // Battle Text
     public TextMeshProUGUI battleText;
@@ -33,6 +35,8 @@ public class BattleManager : MonoBehaviour
     public GameObject damagePopupPrefab;
     public GameObject actionPanel;
     public GameObject skillPanel;
+    public GameObject zombieObject;
+    public GameObject bossObject;
 
     // Damage Popup Points
     public Transform playerDamagePoint;
@@ -44,12 +48,30 @@ public class BattleManager : MonoBehaviour
     // Skills
     public int powerStrikeDamage = 35;
 
+    // Boss Fight
+    private bool bossFightStarted = false;
+
+    //Effects
+    [Header("Hit Feedback")]
+    public float shakeDuration = 0.2f;
+    public float shakeMagnitude = 0.05f;
+    public float flashDuration = 0.15f;
+    public Color flashColor = new Color(1f, 0.7f, 0.7f, 1f);
+
     void Start()
     {
         Debug.Log("BattleManager started");
 
         playerTargetHPFill = 1f;
         enemyTargetHPFill = 1f;
+
+        enemyUnit = zombieUnit;
+
+        zombieObject.SetActive(true);
+        bossObject.SetActive(false);
+
+        ShowActionPanel();
+        SetActionButtonsInteractable(false);
 
         state = BattleState.START;
         StartCoroutine(SetupBattle());
@@ -68,6 +90,51 @@ public class BattleManager : MonoBehaviour
         popup.Setup(damage);
     }
 
+    IEnumerator ShakeTarget(Transform target)
+    {
+        Vector3 originalPosition = target.localPosition;
+        float elapsed = 0f;
+
+        while (elapsed < shakeDuration)
+        {
+            float offsetX = Random.Range(-shakeMagnitude, shakeMagnitude);
+            float offsetY = Random.Range(-shakeMagnitude, shakeMagnitude);
+
+            target.localPosition = originalPosition + new Vector3(offsetX, offsetY, 0f);
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        target.localPosition = originalPosition;
+    }
+
+    IEnumerator FlashTarget(SpriteRenderer spriteRenderer)
+    {
+        if (spriteRenderer == null)
+            yield break;
+
+        Color originalColor = spriteRenderer.color;
+        spriteRenderer.color = flashColor;
+
+        yield return new WaitForSeconds(flashDuration);
+
+        spriteRenderer.color = originalColor;
+    }
+
+    SpriteRenderer GetUnitSpriteRenderer(Unit unit)
+    {
+        return unit.GetComponent<SpriteRenderer>();
+    }
+
+    void RefreshHPUIImmediate()
+    {
+        UpdateHPText();
+
+        playerHPBarFill.fillAmount = playerTargetHPFill;
+        enemyHPBarFill.fillAmount = enemyTargetHPFill;
+    }
+
     void ShowActionPanel()
     {
         actionPanel.SetActive(true);
@@ -82,11 +149,37 @@ public class BattleManager : MonoBehaviour
 
     void UpdateHPText()
     {
-        playerHPText.text = "Player HP: " + playerUnit.currentHealth + "/" + playerUnit.maxHealth;
-        enemyHPText.text = "Enemy HP: " + enemyUnit.currentHealth + "/" + enemyUnit.maxHealth;
+        playerHPText.text = playerUnit.unitName + " HP: " + playerUnit.currentHealth + "/" + playerUnit.maxHealth;
+        enemyHPText.text = enemyUnit.unitName + " HP: " + enemyUnit.currentHealth + "/" + enemyUnit.maxHealth;
 
         playerTargetHPFill = (float)playerUnit.currentHealth / playerUnit.maxHealth;
         enemyTargetHPFill = (float)enemyUnit.currentHealth / enemyUnit.maxHealth;
+    }
+
+    IEnumerator StartBossFight()
+    {
+        state = BattleState.BUSY;
+        SetActionButtonsInteractable(false);
+
+        battleText.text = enemyUnit.unitName + " was defeated!";
+        yield return new WaitForSeconds(1.5f);
+
+        battleText.text = "A stronger enemy approaches!";
+        yield return new WaitForSeconds(1.5f);
+
+        zombieObject.SetActive(false);
+        bossObject.SetActive(true);
+
+        enemyUnit = bossUnit;
+        bossFightStarted = true;
+
+        RefreshHPUIImmediate();
+
+        battleText.text = enemyUnit.unitName + " enters the battle!";
+        yield return new WaitForSeconds(1.5f);
+
+        state = BattleState.PLAYERTURN;
+        PlayerTurn();
     }
 
     IEnumerator SetupBattle()
@@ -95,6 +188,7 @@ public class BattleManager : MonoBehaviour
 
         battleText.text = "A zombie appears!";
         UpdateHPText();
+        RefreshHPUIImmediate();
 
         yield return new WaitForSeconds(2f);
 
@@ -175,18 +269,29 @@ public class BattleManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.5f);
 
-        enemyUnit.TakeDamage(playerUnit.attackPower);
-        ShowDamagePopup(enemyDamagePoint, playerUnit.attackPower);
+        int damage = playerUnit.GetDamage();
+
+        enemyUnit.TakeDamage(damage);
+        StartCoroutine(ShakeTarget(enemyUnit.transform));
+        StartCoroutine(FlashTarget(GetUnitSpriteRenderer(enemyUnit)));
+        ShowDamagePopup(enemyDamagePoint, damage);
         UpdateHPText();
 
-        battleText.text = "You attacked for " + playerUnit.attackPower + " damage!";
+        battleText.text = "You attacked for " + damage + " damage!";
 
         yield return new WaitForSeconds(1.5f);
 
         if (enemyUnit.IsDead())
         {
-            state = BattleState.WON;
-            EndBattle();
+            if (!bossFightStarted)
+            {
+                StartCoroutine(StartBossFight());
+            }
+            else
+            {
+                state = BattleState.WON;
+                EndBattle();
+            }
         }
         else
         {
@@ -218,7 +323,7 @@ public class BattleManager : MonoBehaviour
 
         yield return new WaitForSeconds(1f);
 
-        state = BattleState.LOST;
+        state = BattleState.FLED;
         EndBattle();
     }
 
@@ -228,22 +333,33 @@ public class BattleManager : MonoBehaviour
         SetActionButtonsInteractable(false);
         ShowActionPanel();
 
+        int psdamage = Random.Range(powerStrikeDamage - 5, powerStrikeDamage + 6);
+
         battleText.text = "You use Power Strike!";
 
         yield return new WaitForSeconds(0.5f);
 
-        enemyUnit.TakeDamage(powerStrikeDamage);
-        ShowDamagePopup(enemyDamagePoint, powerStrikeDamage);
+        enemyUnit.TakeDamage(psdamage);
+        StartCoroutine(ShakeTarget(enemyUnit.transform));
+        StartCoroutine(FlashTarget(GetUnitSpriteRenderer(enemyUnit)));
+        ShowDamagePopup(enemyDamagePoint, psdamage);
         UpdateHPText();
 
-        battleText.text = "Power Strike deals " + powerStrikeDamage + " damage!";
+        battleText.text = "Power Strike deals " + psdamage + " damage!";
 
         yield return new WaitForSeconds(1.5f);
 
         if (enemyUnit.IsDead())
         {
-            state = BattleState.WON;
-            EndBattle();
+            if (!bossFightStarted)
+            {
+                StartCoroutine(StartBossFight());
+            }
+            else
+            {
+                state = BattleState.WON;
+                EndBattle();
+            }
         }
         else
         {
@@ -260,19 +376,26 @@ public class BattleManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.5f);
 
-        int damage = enemyUnit.attackPower;
+        int damage = enemyUnit.GetDamage();
+        bool blocked = false;
 
         if (playerUnit.isDefending)
         {
             damage = Mathf.Max(1, damage / 2);
             playerUnit.isDefending = false;
+            blocked = true;
         }
 
         playerUnit.TakeDamage(damage);
+        StartCoroutine(ShakeTarget(playerUnit.transform));
+        StartCoroutine(FlashTarget(GetUnitSpriteRenderer(playerUnit)));
         ShowDamagePopup(playerDamagePoint, damage);
         UpdateHPText();
 
-        battleText.text = "Enemy attacks for " + damage + " damage!";
+        if (blocked)
+            battleText.text = "You blocked part of the damage! Enemy dealt " + damage + " damage!";
+        else
+            battleText.text = "Enemy attacks for " + damage + " damage!";
 
         yield return new WaitForSeconds(1.5f);
 
@@ -309,6 +432,8 @@ public class BattleManager : MonoBehaviour
         if (state == BattleState.WON)
             battleText.text = "You won!";
         else if (state == BattleState.LOST)
-            battleText.text = "Battle ended.";
+            battleText.text = "You were defeated!";
+        else if (state == BattleState.FLED)
+            battleText.text = "You fled from battle!";
     }
 }
