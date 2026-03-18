@@ -5,7 +5,6 @@ using UnityEngine.UI;
 
 public class BattleManager : MonoBehaviour
 {
-
     public BattleState state;
 
     // Units
@@ -18,12 +17,18 @@ public class BattleManager : MonoBehaviour
     public TextMeshProUGUI battleText;
     public TextMeshProUGUI playerHPText;
     public TextMeshProUGUI enemyHPText;
+    public TextMeshProUGUI playerSPText;
+    public TextMeshProUGUI shoulderBashButtonText;
+    public TextMeshProUGUI allOutAttackButtonText;
+    public TextMeshProUGUI rageButtonText;
 
-    // HP Bars
+    // HP Bars and SP Bars
     public Image playerHPBarFill;
     public Image enemyHPBarFill;
+    public Image playerSPBarFill;
     private float playerTargetHPFill;
     private float enemyTargetHPFill;
+    private float playerTargetSPFill;
     public float hpBarSpeed = 2f;
 
     // Action Buttons
@@ -31,6 +36,11 @@ public class BattleManager : MonoBehaviour
     public Button defendButton;
     public Button skillButton;
     public Button fleeButton;
+
+    // Skill Buttons
+    public Button shoulderBashButton;
+    public Button allOutAttackButton;
+    public Button rageButton;
 
     // Panels / UI
     public GameObject damagePopupPrefab;
@@ -46,31 +56,103 @@ public class BattleManager : MonoBehaviour
     // Canvas
     public Canvas battleCanvas;
 
+    // Player SP
+    [Header("Player SP")]
+    public int playerMaxSP = 10;
+    public int playerCurrentSP = 10;
+    public int spRegenPerTurn = 2;
+
     // Skills
-    public int powerStrikeDamage = 35;
+    [Header("Player Skills")]
+    // Warrior Skills
+    // Shoulder Bash - A strong attack that stuns the enemy for one turn. Costs SP and has a damage range.
+    public int shoulderBashCost = 3;
+    public int shoulderBashMinDamage = 18;
+    public int shoulderBashMaxDamage = 24;
+
+    // All out attack - Aoe damaging move that hits all opponents for moderately high damage (AOE not implemented yet)
+    public int allOutAttackCost = 5;
+    public int allOutAttackMinDamage = 28;
+    public int allOutAttackMaxDamage = 36;
+
+    // Rage - Buff that increases damage for 2 turns
+    public int rageCost = 4;
+    public int rageBonusDamage = 8;
+    public int rageDurationTurns = 2;
+
+    // CRITS!?
+    [Header("Critical Hits")]
+    public int playerCritChancePercent = 15;
+    public float playerCritMultiplier = 1.5f;
+
+    public int enemyCritChancePercent = 10;
+    public float enemyCritMultiplier = 1.5f;
 
     // Boss Fight
     private bool bossFightStarted = false;
+    private int bossMoveIndex = 0;
+    private bool bossDefenseLowered = false;
+
+    [Header("Boss Skills")]
+    public int feralSwipeMinDamage = 8;
+    public int feralSwipeMaxDamage = 14;
+    public int infectedBiteMinDamage = 14;
+    public int infectedBiteMaxDamage = 20;
+    public int agonizedLungeMinDamage = 22;
+    public int agonizedLungeMaxDamage = 30;
+
+    // Player status effects
+    private bool playerBleeding = false;
+    private int bleedTurnsRemaining = 0;
+    private bool playerRageActive = false;
+    private int rageTurnsRemaining = 0;
+
+    // Status Effects
+    [Header("Bleed Effect")]
+    public int bleedDamage = 5;
+    public int bleedChancePercent = 30;
+    public int bleedDuration = 2;
+
+    private bool enemyStunned = false;
 
     //Effects
     [Header("Hit Feedback")]
     // How long a target shakes when hit
     public float shakeDuration = 0.2f;
+
     // How much the target moves while shaking
     public float shakeMagnitude = 0.05f;
+
     // How long the target flashes when hit
 
     public float flashDuration = 0.15f;
+
     // The color the target flashes when hit (light red)
     public Color flashColor = new Color(1f, 0.7f, 0.7f, 1f);
+
+    // The color the target flashes when Infected Bite hits (Green)
+    public Color infectedBiteFlashColor = new Color(0.7f, 1f, 0.5f, 1f);
+
+    // The color the player flashes when Rage is up
+    public Color rageFlashColor = new Color(1f, 0.6f, 0.3f, 1f);
+
+    // Damage Popup for crits (Yellow)
+    public Color criticalDamageColor = Color.yellow;
+
+    // Popup Color for bleed damage (Dark Red)
+    public Color bleedDamageColor = new Color(0.65f, 0f, 0f, 1f);
 
     void Start()
     {
         Debug.Log("BattleManager started");
 
-        // Start both HP bars at full 
+        // Start both HP bars at full
         playerTargetHPFill = 1f;
         enemyTargetHPFill = 1f;
+
+        // Start SP at max as well
+        playerCurrentSP = playerMaxSP;
+        playerTargetSPFill = 1f;
 
         // Set the first enemy to the zombie
         enemyUnit = zombieUnit;
@@ -89,24 +171,250 @@ public class BattleManager : MonoBehaviour
     }
 
     // Spawns a floating damage number at a given world position
-    void ShowDamagePopup(Transform damagePoint, int damage)
+    void ShowDamagePopup(
+        Transform damagePoint,
+        int damage,
+        string prefix = "-",
+        Color? textColor = null
+    )
     {
-        // Convert the world position to a screen position for UI placement
         Vector3 screenPos = Camera.main.WorldToScreenPoint(damagePoint.position);
-        
-        // Create the popup under the battle canvas
+
         GameObject popupObj = Instantiate(damagePopupPrefab, battleCanvas.transform);
 
-        // Place the popup on screen
         RectTransform popupRect = popupObj.GetComponent<RectTransform>();
         popupRect.position = screenPos;
-       
-        // Pass the damage value into the popup script
+
         DamagePopup popup = popupObj.GetComponent<DamagePopup>();
-        popup.Setup(damage);
+        popup.Setup(damage, prefix, textColor);
     }
-   
-    // Makes a target briefly shake when hit    
+
+    // Struct to hold boss attack data for cleaner code when determining boss attacks (Refactored from multiple variables and if statements in EnemyTurn)
+    private struct BossAttackData
+    {
+        public string attackName;
+        public int damage;
+        public string moveType;
+
+        public BossAttackData(string attackName, int damage, string moveType)
+        {
+            this.attackName = attackName;
+            this.damage = damage;
+            this.moveType = moveType;
+        }
+    }
+
+    /* Applies all temporary player damage modifiers:
+    - Rage buff bonus damage
+    - Boss defense break bonus (from Agonized Lunge)
+    Returns final damage and flags used for combat text
+    */
+    int ApplyPlayerDamageBonuses(int baseDamage, out bool exploitedOpening, out bool rageBoosted)
+    {
+        int finalDamage = baseDamage;
+        exploitedOpening = false;
+        rageBoosted = false;
+
+        // Rage adds bonus damage
+        if (playerRageActive)
+        {
+            finalDamage += rageBonusDamage;
+            rageBoosted = true;
+        }
+
+        // Boss defense break from Agonized Lunge adds bonus damage once
+        if (bossFightStarted && enemyUnit == bossUnit && bossDefenseLowered)
+        {
+            finalDamage += 5;
+            bossDefenseLowered = false;
+            exploitedOpening = true;
+        }
+
+        return finalDamage;
+    }
+
+    // He he boiah we getting real critty
+    int ApplyCriticalHit(
+        int baseDamage,
+        int critChancePercent,
+        float critMultiplier,
+        out bool isCritical
+    )
+    {
+        int critRoll = Random.Range(1, 101);
+        isCritical = critRoll <= critChancePercent;
+
+        if (isCritical)
+        {
+            return Mathf.RoundToInt(baseDamage * critMultiplier);
+        }
+
+        return baseDamage;
+    }
+
+    /* Applies damage to the enemy and triggers all hit feedback:
+    - Crits 1.5x Multiplier and different combat text
+    - Shake animation
+    - Flash effect
+    - Damage popup
+    - HP UI update
+    */
+    void DamageEnemy(int damage, bool isCritical = false)
+    {
+        enemyUnit.TakeDamage(damage);
+        StartCoroutine(ShakeTarget(enemyUnit.transform));
+        StartCoroutine(FlashTarget(GetUnitSpriteRenderer(enemyUnit)));
+
+        if (isCritical)
+            ShowDamagePopup(enemyDamagePoint, damage, "-", criticalDamageColor);
+        else
+            ShowDamagePopup(enemyDamagePoint, damage);
+
+        UpdateHPText();
+    }
+
+    /* These helper methods generate combat text based on: (Refactored from multiple if statements in PlayerAttack, PlayerShoulderBash, and PlayerAllOutAttack for cleaner code and separation of concerns)
+    - Whether Rage boosted the attack
+    - Whether the boss defense break was exploited
+    Keeps combat text logic separate from gameplay logic
+    */
+    string GetBasicAttackMessage(int damage, bool exploitedOpening, bool rageBoosted)
+    {
+        if (exploitedOpening && rageBoosted)
+            return "Rage and the opening let you deal " + damage + " damage!";
+        if (exploitedOpening)
+            return "You exploited the opening and dealt " + damage + " damage!";
+        if (rageBoosted)
+            return "Fueled by Rage, you dealt " + damage + " damage!";
+
+        return "You attacked for " + damage + " damage!";
+    }
+
+    string GetShoulderBashMessage(int damage, bool exploitedOpening, bool rageBoosted)
+    {
+        if (exploitedOpening && rageBoosted)
+            return "Rage empowers Shoulder Bash for " + damage + " damage and a stun!";
+        if (exploitedOpening)
+            return "Shoulder Bash exploits the opening and deals " + damage + " damage!";
+        if (rageBoosted)
+            return "Rage empowers Shoulder Bash for " + damage + " damage and a stun!";
+
+        return "Shoulder Bash deals " + damage + " damage and stuns the enemy!";
+    }
+
+    string GetAllOutAttackMessage(int damage, bool exploitedOpening, bool rageBoosted)
+    {
+        if (exploitedOpening && rageBoosted)
+            return "Rage and the opening power All Out Attack for " + damage + " damage!";
+        if (exploitedOpening)
+            return "All Out Attack exploits the opening and deals " + damage + " damage!";
+        if (rageBoosted)
+            return "Rage powers All Out Attack for " + damage + " damage!";
+
+        return "All Out Attack deals " + damage + " damage!";
+    }
+
+    // Message Helpers end here */
+
+    /* Determines which boss move to use based on turn order (rotation) (Refactored from EnemyTurn for cleaner code and separation of concerns) There was a lot of spaghetti code ....
+    Also handles special effects like enabling defense break from Lunge
+    Returns packaged attack data for EnemyTurn()
+    */
+    BossAttackData GetBossAttack()
+    {
+        BossAttackData attackData;
+
+        if (bossMoveIndex == 0)
+        {
+            attackData = new BossAttackData(
+                enemyUnit.unitName + " uses Feral Swipe!",
+                Random.Range(feralSwipeMinDamage, feralSwipeMaxDamage + 1),
+                "Swipe"
+            );
+        }
+        else if (bossMoveIndex == 1)
+        {
+            attackData = new BossAttackData(
+                enemyUnit.unitName + " uses Infected Bite!",
+                Random.Range(infectedBiteMinDamage, infectedBiteMaxDamage + 1),
+                "Bite"
+            );
+        }
+        else
+        {
+            bossDefenseLowered = true;
+            attackData = new BossAttackData(
+                enemyUnit.unitName + " uses Agonized Lunge!",
+                Random.Range(agonizedLungeMinDamage, agonizedLungeMaxDamage + 1),
+                "Lunge"
+            );
+        }
+
+        bossMoveIndex++;
+        if (bossMoveIndex > 2)
+            bossMoveIndex = 0;
+
+        return attackData;
+    }
+
+    /* Handles what happens after the player attacks:
+    - If enemy dies → transition to boss or win
+    - Otherwise → proceed to enemy turn
+    More refactoring to clean up code overall
+    */
+    IEnumerator ResolveEnemyDefeatOrContinue()
+    {
+        yield return new WaitForSeconds(1.5f);
+
+        if (enemyUnit.IsDead())
+        {
+            if (!bossFightStarted)
+            {
+                StartCoroutine(StartBossFight());
+            }
+            else
+            {
+                state = BattleState.WON;
+                EndBattle();
+            }
+        }
+        else
+        {
+            state = BattleState.ENEMYTURN;
+            StartCoroutine(EnemyTurn());
+        }
+    }
+
+    /* Applies damage to the player and triggers hit feedback
+    Different boss moves modify visuals:
+    - Lunge → stronger shake
+    - Bite → green flash
+    */
+    void DamagePlayer(int damage, string bossMoveType, bool isCritical = false)
+    {
+        playerUnit.TakeDamage(damage);
+
+        if (bossMoveType == "Lunge")
+            StartCoroutine(ShakeTargetCustom(playerUnit.transform, 0.5f, 0.2f));
+        else
+            StartCoroutine(ShakeTarget(playerUnit.transform));
+
+        if (bossMoveType == "Bite")
+            StartCoroutine(
+                FlashTargetColor(GetUnitSpriteRenderer(playerUnit), infectedBiteFlashColor)
+            );
+        else
+            StartCoroutine(FlashTarget(GetUnitSpriteRenderer(playerUnit)));
+
+        if (isCritical)
+            ShowDamagePopup(playerDamagePoint, damage, "-", criticalDamageColor);
+        else
+            ShowDamagePopup(playerDamagePoint, damage);
+
+        UpdateHPText();
+    }
+
+    // Standard shake effect for almost every hit
     IEnumerator ShakeTarget(Transform target)
     {
         Vector3 originalPosition = target.localPosition;
@@ -122,11 +430,31 @@ public class BattleManager : MonoBehaviour
             elapsed += Time.deltaTime;
             yield return null;
         }
-        // Restore original position after shaking
+
         target.localPosition = originalPosition;
     }
-    
-    // Makes a sprite briefly flash a different color when hit
+
+    // This is the method to have a Stronger shake used for heavy attacks (boss abilities, etc.)
+    IEnumerator ShakeTargetCustom(Transform target, float duration, float magnitude)
+    {
+        Vector3 originalPosition = target.localPosition;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            float offsetX = Random.Range(-magnitude, magnitude);
+            float offsetY = Random.Range(-magnitude, magnitude);
+
+            target.localPosition = originalPosition + new Vector3(offsetX, offsetY, 0f);
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        target.localPosition = originalPosition;
+    }
+
+    // Default flash (light red) used when taking damage
     IEnumerator FlashTarget(SpriteRenderer spriteRenderer)
     {
         if (spriteRenderer == null)
@@ -139,46 +467,104 @@ public class BattleManager : MonoBehaviour
 
         spriteRenderer.color = originalColor;
     }
-    
+
+    // Custom flash color for special effects (Infected bite, rage, etc.)
+    IEnumerator FlashTargetColor(SpriteRenderer spriteRenderer, Color customColor)
+    {
+        if (spriteRenderer == null)
+            yield break;
+
+        Color originalColor = spriteRenderer.color;
+        spriteRenderer.color = customColor;
+
+        yield return new WaitForSeconds(flashDuration);
+
+        spriteRenderer.color = originalColor;
+    }
+
     // Gets the SpriteRenderer from a Unit object
     SpriteRenderer GetUnitSpriteRenderer(Unit unit)
     {
         return unit.GetComponent<SpriteRenderer>();
     }
-    
-    /* Instantly updates both HP text and HP bar fill amounts
-       Used at battle start and during boss transition
-    */
-    void RefreshHPUIImmediate()
+
+    // Instantly updates all UI elements (HP/SP text and bars)
+    // Used when switching enemies or initializing battle state
+    void RefreshBattleUIImmediate()
     {
         UpdateHPText();
+        UpdateSPUI();
 
         playerHPBarFill.fillAmount = playerTargetHPFill;
         enemyHPBarFill.fillAmount = enemyTargetHPFill;
+        playerSPBarFill.fillAmount = playerTargetSPFill;
     }
-   
+
     // Shows the normal action panel and hides the skill panel
     void ShowActionPanel()
     {
         actionPanel.SetActive(true);
         skillPanel.SetActive(false);
     }
-    
+
     // Shows the skill panel and hides the normal action panel
     void ShowSkillPanel()
     {
         actionPanel.SetActive(false);
         skillPanel.SetActive(true);
     }
-    
-    // Updates HP text and sets the target fill values for the HP bars
+
+    // Updates skill button labels and enables/disables them based on whether the player has enough SP or not.
+    void UpdateSkillButtonsUI()
+    {
+        shoulderBashButtonText.text = "Shoulder Bash\nSP " + shoulderBashCost;
+        allOutAttackButtonText.text = "All Out Attack\nSP " + allOutAttackCost;
+        rageButtonText.text = "Rage\nSP " + rageCost;
+
+        shoulderBashButton.interactable = playerCurrentSP >= shoulderBashCost;
+        allOutAttackButton.interactable = playerCurrentSP >= allOutAttackCost;
+        rageButton.interactable = playerCurrentSP >= rageCost;
+    }
+
+    // Made a method for updating battle text i got tired of typing BattleText.text = "some message" in every method that needs to update the battle text.
+    // Makes it easier to later add animations, typing effects, etc.
+    void SetBattleText(string message)
+    {
+        battleText.text = message;
+    }
+
+    // Updates HP text and sets the target fill values for the HP bars Ensures UI always reflects current HP after changes
     void UpdateHPText()
     {
-        playerHPText.text = playerUnit.unitName + " HP: " + playerUnit.currentHealth + "/" + playerUnit.maxHealth;
-        enemyHPText.text = enemyUnit.unitName + " HP: " + enemyUnit.currentHealth + "/" + enemyUnit.maxHealth;
+        playerHPText.text =
+            playerUnit.unitName + " HP: " + playerUnit.currentHealth + "/" + playerUnit.maxHealth;
+        enemyHPText.text =
+            enemyUnit.unitName + " HP: " + enemyUnit.currentHealth + "/" + enemyUnit.maxHealth;
 
         playerTargetHPFill = (float)playerUnit.currentHealth / playerUnit.maxHealth;
         enemyTargetHPFill = (float)enemyUnit.currentHealth / enemyUnit.maxHealth;
+    }
+
+    // Updates SP text and sets the target fill value for the SP bar Ensures UI always reflects current SP after changes
+    void UpdateSPUI()
+    {
+        playerSPText.text = "SP: " + playerCurrentSP + "/" + playerMaxSP;
+        playerTargetSPFill = (float)playerCurrentSP / playerMaxSP;
+        UpdateSkillButtonsUI();
+    }
+
+    // Attempts to spend SP for a skill Returns false if not enough SP and shows error message to the player
+    bool TrySpendSP(int cost)
+    {
+        if (playerCurrentSP < cost)
+        {
+            SetBattleText("Not enough SP!");
+            return false;
+        }
+
+        playerCurrentSP -= cost;
+        UpdateSPUI();
+        return true;
     }
 
     // Starts the second phase of battle by swapping from zombie to boss
@@ -187,53 +573,186 @@ public class BattleManager : MonoBehaviour
         state = BattleState.BUSY;
         SetActionButtonsInteractable(false);
 
-        battleText.text = enemyUnit.unitName + " was defeated!";
+        SetBattleText(enemyUnit.unitName + " was defeated!");
         yield return new WaitForSeconds(1.5f);
 
-        battleText.text = "A stronger enemy approaches!";
+        SetBattleText("A stronger enemy approaches!");
         yield return new WaitForSeconds(1.5f);
-      
-        // Swap enemy from zombie to boss
+
         zombieObject.SetActive(false);
         bossObject.SetActive(true);
 
-        //Swap the current enemy reference to the boss unit
         enemyUnit = bossUnit;
         bossFightStarted = true;
 
-        //Refresh enemy HP UI for the boss
-        RefreshHPUIImmediate();
+        bossMoveIndex = 0;
+        bossDefenseLowered = false;
 
-        battleText.text = enemyUnit.unitName + " enters the battle!";
+        RefreshBattleUIImmediate();
+
+        SetBattleText(enemyUnit.unitName + " enters the battle!");
         yield return new WaitForSeconds(1.5f);
 
         state = BattleState.PLAYERTURN;
         PlayerTurn();
     }
-    
+
     // Handles the opening setup for the battle
     IEnumerator SetupBattle()
     {
         SetActionButtonsInteractable(false);
 
-        battleText.text = "A zombie appears!";
-        UpdateHPText();
-        RefreshHPUIImmediate();
+        SetBattleText("A zombie appears!");
+        RefreshBattleUIImmediate();
 
         yield return new WaitForSeconds(2f);
 
         state = BattleState.PLAYERTURN;
         PlayerTurn();
     }
-    
-    // Starts the player's turn
+
+    /* Begins the player's turn:
+    - Shows action panel
+    - Starts turn logic (bleed, SP regen, etc.)
+    */
     void PlayerTurn()
     {
-        battleText.text = "Choose an action.";
-        SetActionButtonsInteractable(true);
         ShowActionPanel();
+        SetActionButtonsInteractable(false);
+        StartCoroutine(BeginPlayerTurn());
     }
-    
+
+    /* Seperate method Handles start-of-turn effects:
+    - Applies bleed damage
+    - Regenerates SP
+    Then transitions into input phase
+    */
+    IEnumerator BeginPlayerTurn()
+    {
+        if (playerBleeding)
+        {
+            yield return StartCoroutine(ApplyBleedEffect());
+
+            if (playerUnit.IsDead())
+            {
+                state = BattleState.LOST;
+                EndBattle();
+                yield break;
+            }
+        }
+
+        playerCurrentSP = Mathf.Min(playerMaxSP, playerCurrentSP + spRegenPerTurn);
+        UpdateSPUI();
+
+        StartPlayerInputPhase();
+    }
+
+    // Enables player input after all start-of-turn effects are resolved dont ask why theres 3 player methods it was to help cleanup the spam of code in PlayerTurn and make it easier to read and manage overall
+    void StartPlayerInputPhase()
+    {
+        SetBattleText("Choose an action.");
+        SetActionButtonsInteractable(true);
+    }
+
+    // WOO HOOO ANOTHER PLAYER METHOD :D
+    /* This one was for the Common setup for all player actions:
+    - Sets state to BUSY
+    - Disables buttons
+    - Optionally returns UI to main action panel
+    Prevents repeated setup code across actions basically state = Bat..and show action panel :)
+    */
+    void BeginPlayerAction(bool returnToActionPanel = true)
+    {
+        state = BattleState.BUSY;
+
+        if (returnToActionPanel)
+        {
+            ShowActionPanel();
+        }
+
+        SetActionButtonsInteractable(false);
+    }
+
+    /* Wowsers not a player method :D
+     Applies bleed damage over time:
+    - Deals damage at start of turn
+    - Decreases duration
+    - Removes effect when finished
+    */
+    IEnumerator ApplyBleedEffect()
+    {
+        if (!playerBleeding)
+            yield break;
+
+        SetBattleText(playerUnit.unitName + " suffers bleed damage!");
+        yield return new WaitForSeconds(0.75f);
+
+        playerUnit.TakeDamage(bleedDamage);
+        StartCoroutine(ShakeTarget(playerUnit.transform));
+        StartCoroutine(FlashTarget(GetUnitSpriteRenderer(playerUnit)));
+        ShowDamagePopup(playerDamagePoint, bleedDamage, "-", bleedDamageColor);
+        UpdateHPText();
+
+        bleedTurnsRemaining--;
+
+        if (bleedTurnsRemaining <= 0)
+        {
+            playerBleeding = false;
+            SetBattleText(playerUnit.unitName + " stops bleeding.");
+            yield return new WaitForSeconds(0.75f);
+        }
+        else
+        {
+            SetBattleText(playerUnit.unitName + " bleeds for " + bleedDamage + " damage!");
+            yield return new WaitForSeconds(0.75f);
+        }
+    }
+
+    // Handles skipping the enemy turn when stunned -> Immediately returns control to the player
+    IEnumerator HandleEnemyStunSkip()
+    {
+        enemyStunned = false;
+        SetBattleText(enemyUnit.unitName + " is stunned and cannot move!");
+        yield return new WaitForSeconds(1f);
+
+        state = BattleState.PLAYERTURN;
+        PlayerTurn();
+    }
+
+    /* Handles what happens after the enemy attacks:
+    - If player dies → end battle
+    - Otherwise → return to player turn
+    */
+    IEnumerator ResolvePlayerDefeatOrContinue()
+    {
+        yield return new WaitForSeconds(1.5f);
+
+        if (playerUnit.IsDead())
+        {
+            state = BattleState.LOST;
+            EndBattle();
+        }
+        else
+        {
+            state = BattleState.PLAYERTURN;
+            PlayerTurn();
+        }
+    }
+
+    // Reduces remaining Rage duration after an attack -> Disables Rage when duration expires
+    void ConsumeRageTurn()
+    {
+        if (!playerRageActive)
+            return;
+
+        rageTurnsRemaining--;
+
+        if (rageTurnsRemaining <= 0)
+        {
+            playerRageActive = false;
+        }
+    }
+
     // Enables or disables the main action buttons
     void SetActionButtonsInteractable(bool isInteractable)
     {
@@ -242,7 +761,7 @@ public class BattleManager : MonoBehaviour
         skillButton.interactable = isInteractable;
         fleeButton.interactable = isInteractable;
     }
-    
+
     // Called when the Attack button is pressed
     public void OnAttackButton()
     {
@@ -262,15 +781,18 @@ public class BattleManager : MonoBehaviour
         SetActionButtonsInteractable(false);
         StartCoroutine(PlayerDefend());
     }
+
     // Called when the Skill button is pressed
     public void OnSkillButton()
     {
         if (state != BattleState.PLAYERTURN)
             return;
 
+        UpdateSkillButtonsUI();
         ShowSkillPanel();
-        battleText.text = "Choose a skill.";
+        SetBattleText("Choose a skill.");
     }
+
     // Called when the Back button on the skill panel is pressed
     public void OnBackButton()
     {
@@ -278,89 +800,119 @@ public class BattleManager : MonoBehaviour
             return;
 
         ShowActionPanel();
-        battleText.text = "Choose an action.";
+        SetBattleText("Choose an action.");
     }
-    
+
     // Called when the Flee button is pressed
     public void OnFleeButton()
     {
         if (state != BattleState.PLAYERTURN)
             return;
+        
+        // Stop trying to be a pussy.
+        if (bossFightStarted)
+        {
+            SetBattleText("You cannot escape your destiny.");
+            return;
+        }
 
         StartCoroutine(PlayerFlee());
     }
-    
-    // Called when the Power Strike skill button is pressed
-    public void OnPowerStrikeButton()
+
+    // Called when the Shoulder Bash skill button is pressed
+    public void OnShoulderBashButton()
     {
         if (state != BattleState.PLAYERTURN)
             return;
 
-        StartCoroutine(PlayerPowerStrike());
+        StartCoroutine(PlayerShoulderBash());
     }
-    
-    // Handles the player's normal attack
+
+    // Called when the All Out Attack skill button is pressed
+    public void OnAllOutAttackButton()
+    {
+        if (state != BattleState.PLAYERTURN)
+            return;
+
+        StartCoroutine(PlayerAllOutAttack());
+    }
+
+    // Called when the Rage skill button is pressed
+    public void OnRageButton()
+    {
+        if (state != BattleState.PLAYERTURN)
+            return;
+
+        StartCoroutine(PlayerRage());
+    }
+
+    // ================= PLAYER ACTIONS =================
+
+    // Basic attack:
+    // - Applies damage modifiers
+    // - Deals damage
+    // - Advances turn
     IEnumerator PlayerAttack()
     {
-        state = BattleState.BUSY;
-
+        BeginPlayerAction(false);
         yield return new WaitForSeconds(0.5f);
 
-        int damage = playerUnit.GetDamage();
+        bool exploitedOpening;
+        bool rageBoosted;
+        bool isCritical;
 
-        enemyUnit.TakeDamage(damage);
-        StartCoroutine(ShakeTarget(enemyUnit.transform));
-        StartCoroutine(FlashTarget(GetUnitSpriteRenderer(enemyUnit)));
-        ShowDamagePopup(enemyDamagePoint, damage);
-        UpdateHPText();
+        int damage = ApplyPlayerDamageBonuses(
+            playerUnit.GetDamage(),
+            out exploitedOpening,
+            out rageBoosted
+        );
+        damage = ApplyCriticalHit(
+            damage,
+            playerCritChancePercent,
+            playerCritMultiplier,
+            out isCritical
+        );
 
-        battleText.text = "You attacked for " + damage + " damage!";
+        DamageEnemy(damage, isCritical);
 
-        yield return new WaitForSeconds(1.5f);
-         
-        // If zombie dies first, begin boss phase
-        if (enemyUnit.IsDead())
+        string attackMessage = GetBasicAttackMessage(damage, exploitedOpening, rageBoosted);
+
+        if (isCritical)
         {
-            if (!bossFightStarted)
-            {
-                StartCoroutine(StartBossFight());
-            }
-            else
-            {
-            // If boss dies, player wins ( you will not win >:) )
-                state = BattleState.WON;
-                EndBattle();
-            }
+            attackMessage = "Critical hit! " + attackMessage;
         }
-        else
+
+        SetBattleText(attackMessage);
+
+        if (rageBoosted)
         {
-            state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
+            ConsumeRageTurn();
         }
+
+        yield return StartCoroutine(ResolveEnemyDefeatOrContinue());
     }
-    
-    // Handles defending for one enemy attack
+
+    // Defend action:
+    // - Reduces damage from next enemy attack
     IEnumerator PlayerDefend()
     {
-        state = BattleState.BUSY;
-        SetActionButtonsInteractable(false);
+        BeginPlayerAction(false);
 
         playerUnit.isDefending = true;
-        battleText.text = "You brace for impact!";
+        SetBattleText("You brace for impact!");
 
         yield return new WaitForSeconds(1f);
 
         state = BattleState.ENEMYTURN;
         StartCoroutine(EnemyTurn());
     }
-    
-    // Handles fleeing from battle
+
+    // Ends the battle immediately (Pussy)
     IEnumerator PlayerFlee()
     {
-        state = BattleState.BUSY;
-        SetActionButtonsInteractable(false);
+        BeginPlayerAction(false);
 
-        battleText.text = "You fled from battle!";
+        SetBattleText("You fled from battle!");
 
         yield return new WaitForSeconds(1f);
 
@@ -368,61 +920,167 @@ public class BattleManager : MonoBehaviour
         EndBattle();
     }
 
-    // Handles the Power Strike skill
-    IEnumerator PlayerPowerStrike()
+    // Deals damage and stuns the enemy for one turn
+    IEnumerator PlayerShoulderBash()
     {
-        state = BattleState.BUSY;
-        SetActionButtonsInteractable(false);
-        ShowActionPanel();
+        if (!TrySpendSP(shoulderBashCost))
+            yield break;
 
-        int psdamage = Random.Range(powerStrikeDamage - 5, powerStrikeDamage + 6);
+        BeginPlayerAction();
 
-        battleText.text = "You use Power Strike!";
-
+        SetBattleText("You use Shoulder Bash!");
         yield return new WaitForSeconds(0.5f);
 
-        enemyUnit.TakeDamage(psdamage);
-        StartCoroutine(ShakeTarget(enemyUnit.transform));
-        StartCoroutine(FlashTarget(GetUnitSpriteRenderer(enemyUnit)));
-        ShowDamagePopup(enemyDamagePoint, psdamage);
-        UpdateHPText();
+        bool exploitedOpening;
+        bool rageBoosted;
+        bool isCritical;
 
-        battleText.text = "Power Strike deals " + psdamage + " damage!";
+        int damage = ApplyPlayerDamageBonuses(
+            Random.Range(shoulderBashMinDamage, shoulderBashMaxDamage + 1),
+            out exploitedOpening,
+            out rageBoosted
+        );
+        damage = ApplyCriticalHit(
+            damage,
+            playerCritChancePercent,
+            playerCritMultiplier,
+            out isCritical
+        );
 
-        yield return new WaitForSeconds(1.5f);
-
-        if (enemyUnit.IsDead())
+        DamageEnemy(damage, isCritical);
+        enemyStunned = true;
+        string attackMessage = GetShoulderBashMessage(damage, exploitedOpening, rageBoosted);
+        if (isCritical)
         {
-            if (!bossFightStarted)
-            {
-                StartCoroutine(StartBossFight());
-            }
-            else
-            {
-                state = BattleState.WON;
-                EndBattle();
-            }
+            attackMessage = "Critical hit! " + attackMessage;
         }
-        else
+        SetBattleText(attackMessage);
+
+        if (rageBoosted)
         {
-            state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
+            ConsumeRageTurn();
         }
+
+        yield return StartCoroutine(ResolveEnemyDefeatOrContinue());
     }
-    
-    // Handles the enemy's turn
+
+    // High damage attack (intended for AOE later)
+    IEnumerator PlayerAllOutAttack()
+    {
+        if (!TrySpendSP(allOutAttackCost))
+            yield break;
+
+        BeginPlayerAction();
+
+        SetBattleText("You use All Out Attack!");
+        yield return new WaitForSeconds(0.5f);
+
+        bool exploitedOpening;
+        bool rageBoosted;
+        bool isCritical;
+
+        int damage = ApplyPlayerDamageBonuses(
+            Random.Range(allOutAttackMinDamage, allOutAttackMaxDamage + 1),
+            out exploitedOpening,
+            out rageBoosted
+        );
+        damage = ApplyCriticalHit(
+            damage,
+            playerCritChancePercent,
+            playerCritMultiplier,
+            out isCritical
+        );
+
+        DamageEnemy(damage, isCritical);
+
+        string attackMessage = GetAllOutAttackMessage(damage, exploitedOpening, rageBoosted);
+        if (isCritical)
+        {
+            attackMessage = "Critical hit! " + attackMessage;
+        }
+        SetBattleText(attackMessage);
+
+        if (rageBoosted)
+        {
+            ConsumeRageTurn();
+        }
+
+        yield return StartCoroutine(ResolveEnemyDefeatOrContinue());
+    }
+
+    // Buff that increases player damage for multiple turns
+    // Also triggers visual feedback to indicate Rage is active
+    IEnumerator PlayerRage()
+    {
+        if (!TrySpendSP(rageCost))
+            yield break;
+
+        BeginPlayerAction();
+
+        playerRageActive = true;
+        rageTurnsRemaining = rageDurationTurns;
+
+        SetBattleText(playerUnit.unitName + " uses Rage!");
+        // Player flashes orange to indicate Rage is active
+        StartCoroutine(FlashTargetColor(GetUnitSpriteRenderer(playerUnit), rageFlashColor));
+        // Player also shakes to show the power of Rage
+        StartCoroutine(ShakeTargetCustom(playerUnit.transform, 0.1f, 0.07f));
+        yield return new WaitForSeconds(0.75f);
+
+        SetBattleText(playerUnit.unitName + "'s strength surges!");
+        yield return new WaitForSeconds(1.0f);
+
+        state = BattleState.ENEMYTURN;
+        StartCoroutine(EnemyTurn());
+    }
+
+    // ===================================
+
+    /*
+    Handles enemy behavior each turn:
+    - Checks stun
+    - Selects attack (boss or normal)
+    - Applies damage and effects (bleed, defense break)
+    - Transitions back to player or ends battle
+    */
     IEnumerator EnemyTurn()
     {
         state = BattleState.BUSY;
 
-        battleText.text = "Enemy attacks!";
+        if (enemyStunned)
+        {
+            yield return StartCoroutine(HandleEnemyStunSkip());
+            yield break;
+        }
 
+        string attackName = "Enemy attacks!";
+        int damage = 0;
+        bool blocked = false;
+        bool isCritical = false;
+        string bossMoveType = "";
+
+        if (bossFightStarted && enemyUnit == bossUnit)
+        {
+            BossAttackData attackData = GetBossAttack();
+            attackName = attackData.attackName;
+            damage = attackData.damage;
+            bossMoveType = attackData.moveType;
+        }
+        else
+        {
+            attackName = "Enemy attacks!";
+            damage = enemyUnit.GetDamage();
+        }
+        damage = ApplyCriticalHit(
+            damage,
+            enemyCritChancePercent,
+            enemyCritMultiplier,
+            out isCritical
+        );
+
+        SetBattleText(attackName);
         yield return new WaitForSeconds(0.5f);
 
-        int damage = enemyUnit.GetDamage();
-        bool blocked = false;
-        
-        // If the player defended, reduce the damage
         if (playerUnit.isDefending)
         {
             damage = Mathf.Max(1, damage / 2);
@@ -430,31 +1088,61 @@ public class BattleManager : MonoBehaviour
             blocked = true;
         }
 
-        playerUnit.TakeDamage(damage);
-        StartCoroutine(ShakeTarget(playerUnit.transform));
-        StartCoroutine(FlashTarget(GetUnitSpriteRenderer(playerUnit)));
-        ShowDamagePopup(playerDamagePoint, damage);
-        UpdateHPText();
+        DamagePlayer(damage, bossMoveType, isCritical);
 
         if (blocked)
-            battleText.text = "You blocked part of the damage! Enemy dealt " + damage + " damage!";
-        else
-            battleText.text = "Enemy attacks for " + damage + " damage!";
-
-        yield return new WaitForSeconds(1.5f);
-
-        if (playerUnit.IsDead())
         {
-            state = BattleState.LOST;
-            EndBattle();
+            if (isCritical)
+                SetBattleText(
+                    "You blocked part of a critical hit! Enemy dealt " + damage + " damage!"
+                );
+            else
+                SetBattleText("You blocked part of the damage! Enemy dealt " + damage + " damage!");
+        }
+        else if (bossMoveType == "Bite")
+        {
+            if (isCritical)
+                SetBattleText("Critical hit! " + attackName + " It dealt " + damage + " damage!");
+            else
+                SetBattleText(attackName + " It dealt " + damage + " damage!");
+            yield return new WaitForSeconds(1f);
+
+            int bleedRoll = Random.Range(1, 101);
+
+            if (bleedRoll <= bleedChancePercent)
+            {
+                playerBleeding = true;
+                bleedTurnsRemaining = bleedDuration;
+                SetBattleText(playerUnit.unitName + " starts bleeding!");
+            }
+            else
+            {
+                SetBattleText("The wound looks nasty...");
+            }
+
+            yield return new WaitForSeconds(0.75f);
+        }
+        else if (bossMoveType == "Lunge")
+        {
+            if (isCritical)
+                SetBattleText("Critical hit! " + attackName + " It dealt " + damage + " damage!");
+            else
+                SetBattleText(attackName + " It dealt " + damage + " damage!");
+            yield return new WaitForSeconds(1f);
+            SetBattleText(enemyUnit.unitName + "'s guard is lowered!");
+            yield return new WaitForSeconds(0.5f);
         }
         else
         {
-            state = BattleState.PLAYERTURN;
-            PlayerTurn();
+            if (isCritical)
+                SetBattleText("Critical hit!\n" + attackName + "\nIt dealt " + damage + " damage.");
+            else
+                SetBattleText(attackName + "\nIt dealt " + damage + " damage.");
         }
+
+        yield return StartCoroutine(ResolvePlayerDefeatOrContinue());
     }
-    
+
     // Smoothly animates HP bars every frame toward their target values
     void Update()
     {
@@ -463,23 +1151,30 @@ public class BattleManager : MonoBehaviour
             playerTargetHPFill,
             Time.deltaTime * hpBarSpeed
         );
+
         enemyHPBarFill.fillAmount = Mathf.Lerp(
             enemyHPBarFill.fillAmount,
             enemyTargetHPFill,
             Time.deltaTime * hpBarSpeed
         );
+
+        playerSPBarFill.fillAmount = Mathf.Lerp(
+            playerSPBarFill.fillAmount,
+            playerTargetSPFill,
+            Time.deltaTime * hpBarSpeed
+        );
     }
 
-    // Displays the correct final battle message and disables player input
+    // Finalizes battle state and displays result message --> Disables all player input
     void EndBattle()
     {
         SetActionButtonsInteractable(false);
 
         if (state == BattleState.WON)
-            battleText.text = "You won!";
+            SetBattleText("You won!");
         else if (state == BattleState.LOST)
-            battleText.text = "You were defeated!";
+            SetBattleText("You were defeated!");
         else if (state == BattleState.FLED)
-            battleText.text = "You fled from battle!";
+            SetBattleText("You fled from battle!");
     }
 }
