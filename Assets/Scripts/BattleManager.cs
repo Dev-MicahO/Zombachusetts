@@ -11,6 +11,7 @@ public class BattleManager : MonoBehaviour
     public Unit playerUnit;
     public Unit enemyUnit;
     public Unit zombieUnit;
+    public Unit zombie2Unit; // AOE will be hard so im going to add a second zombie after the 1st one dies
     public Unit bossUnit;
     public Unit wifeUnit;
 
@@ -23,6 +24,7 @@ public class BattleManager : MonoBehaviour
     public TextMeshProUGUI shoulderBashButtonText;
     public TextMeshProUGUI allOutAttackButtonText;
     public TextMeshProUGUI rageButtonText;
+    public TextMeshProUGUI dialogueText;
 
     // HP Bars and SP Bars
     public Image playerHPBarFill;
@@ -52,7 +54,10 @@ public class BattleManager : MonoBehaviour
     public GameObject actionPanel;
     public GameObject skillPanel;
     public GameObject zombieObject;
+    public GameObject zombie2Object;
     public GameObject bossObject;
+    public GameObject wifeObject;
+    public GameObject wifeUIObject;
 
     // Damage Popup Points
     public Transform playerDamagePoint;
@@ -61,6 +66,7 @@ public class BattleManager : MonoBehaviour
 
     // Canvas
     public Canvas battleCanvas;
+    public CanvasGroup transitionOverlay;
 
     // Player SP
     [Header("Player SP")]
@@ -94,7 +100,8 @@ public class BattleManager : MonoBehaviour
     public int enemyCritChancePercent = 10;
     public float enemyCritMultiplier = 1.5f;
 
-    // Boss Fight
+    // Encounter / Boss progression
+    private bool zombie2Spawned = false; // Flag to track if the second zombie has been spawned
     private bool bossFightStarted = false;
     private int bossMoveIndex = 0;
     private bool bossDefenseLowered = false;
@@ -166,11 +173,21 @@ public class BattleManager : MonoBehaviour
 
         // Show zombie at start, hide boss until needed
         zombieObject.SetActive(true);
+        zombie2Object.SetActive(false);
         bossObject.SetActive(false);
+        // Wife is visible during the first phase as a companion, then becomes the boss in the second phase. So we start her hidden, then show her during the transition, then hide her again when she becomes the boss.
+        wifeObject.SetActive(true);
+        wifeUIObject.SetActive(true);
 
         // Shows the main action panel and disables buttons until setup is done
         ShowActionPanel();
         SetActionButtonsInteractable(false);
+
+        // Initialize transition UI (used for boss intro)
+        transitionOverlay.alpha = 0f;
+        transitionOverlay.blocksRaycasts = false;
+        dialogueText.text = "";
+        dialogueText.gameObject.SetActive(false);
 
         // Start the battle setup sequence
         state = BattleState.START;
@@ -375,10 +392,17 @@ public class BattleManager : MonoBehaviour
 
         if (enemyUnit.IsDead())
         {
-            if (!bossFightStarted)
+            // Zombie 1 dies -> bring in Zombie 2
+            if (!zombie2Spawned && enemyUnit == zombieUnit)
             {
-                StartCoroutine(StartBossFight());
+                StartCoroutine(StartSecondZombieFight());
             }
+            // Zombie 2 dies -> begin wife boss transition
+            else if (!bossFightStarted && enemyUnit == zombie2Unit)
+            {
+                StartCoroutine(PlayBossTransition());
+            }
+            // Boss dies -> win
             else
             {
                 state = BattleState.WON;
@@ -387,7 +411,7 @@ public class BattleManager : MonoBehaviour
         }
         else
         {
-            if (!wifeUnit.IsDead())
+            if (!wifeUnit.IsDead() && !bossFightStarted)
             {
                 state = BattleState.BUSY;
                 StartCoroutine(WifeTurn());
@@ -556,17 +580,46 @@ public class BattleManager : MonoBehaviour
         battleText.text = message;
     }
 
+    // Handles fading in/out the transition overlay used for the boss intro sequence. 
+    // Fades to a target alpha over a given duration and optionally blocks raycasts to prevent player input during transitions.
+    IEnumerator FadeOverlay(float targetAlpha, float duration)
+    {
+        transitionOverlay.blocksRaycasts = true;
+
+        float startAlpha = transitionOverlay.alpha;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            transitionOverlay.alpha = Mathf.Lerp(startAlpha, targetAlpha, elapsed / duration);
+            yield return null;
+        }
+
+        transitionOverlay.alpha = targetAlpha;
+
+        if (targetAlpha <= 0f)
+        {
+            transitionOverlay.blocksRaycasts = false;
+        }
+    }
+    // Displays a dialogue message during transitions (like the boss intro) for a specified duration. Shows the dialogue text, waits, then can be hidden by the caller after the transition is complete.
+    IEnumerator ShowTransitionDialogue(string message, float duration)
+    {
+        dialogueText.gameObject.SetActive(true);
+        dialogueText.text = message;
+        yield return new WaitForSeconds(duration);
+    }
+
     // Updates HP text and sets the target fill values for the HP bars Ensures UI always reflects current HP after changes
     void UpdateHPText()
     {
-        playerHPText.text =
-            playerUnit.unitName + " HP: " + playerUnit.currentHealth + "/" + playerUnit.maxHealth;
-        wifeHPText.text =
-            wifeUnit.unitName + " HP: " + wifeUnit.currentHealth + "/" + wifeUnit.maxHealth;
-        enemyHPText.text =
-            enemyUnit.unitName + " HP: " + enemyUnit.currentHealth + "/" + enemyUnit.maxHealth;
+        playerHPText.text = playerUnit.unitName + " HP: " + playerUnit.currentHealth + "/" + playerUnit.maxHealth;
+        wifeHPText.text = wifeUnit.unitName + " HP: " + wifeUnit.currentHealth + "/" + wifeUnit.maxHealth;
+        enemyHPText.text = enemyUnit.unitName + " HP: " + enemyUnit.currentHealth + "/" + enemyUnit.maxHealth;
 
         playerTargetHPFill = (float)playerUnit.currentHealth / playerUnit.maxHealth;
+        wifeTargetHPFill = (float)wifeUnit.currentHealth / wifeUnit.maxHealth;
         enemyTargetHPFill = (float)enemyUnit.currentHealth / enemyUnit.maxHealth;
     }
 
@@ -592,8 +645,7 @@ public class BattleManager : MonoBehaviour
         return true;
     }
 
-    // Starts the second phase of battle by swapping from zombie to boss
-    IEnumerator StartBossFight()
+    IEnumerator StartSecondZombieFight()
     {
         state = BattleState.BUSY;
         SetActionButtonsInteractable(false);
@@ -601,25 +653,76 @@ public class BattleManager : MonoBehaviour
         SetBattleText(enemyUnit.unitName + " was defeated!");
         yield return new WaitForSeconds(1.5f);
 
-        SetBattleText("A stronger enemy approaches!");
+        SetBattleText("Another zombie shambles forward!");
         yield return new WaitForSeconds(1.5f);
 
         zombieObject.SetActive(false);
-        bossObject.SetActive(true);
+        zombie2Object.SetActive(true);
 
-        enemyUnit = bossUnit;
-        bossFightStarted = true;
-
-        bossMoveIndex = 0;
-        bossDefenseLowered = false;
+        enemyUnit = zombie2Unit;
+        zombie2Spawned = true;
 
         RefreshBattleUIImmediate();
 
         SetBattleText(enemyUnit.unitName + " enters the battle!");
         yield return new WaitForSeconds(1.5f);
 
-        state = BattleState.PLAYERTURN;
-        PlayerTurn();
+        StartNextAllyPhase();
+    }
+    // Handles the transition sequence when the wife becomes the boss. 
+    // This includes fading to black, showing dialogue about the transformation, swapping visuals from the tutorial phase to the boss fight, and then fading back in to start the boss fight.
+    IEnumerator PlayBossTransition()
+    {
+        state = BattleState.BUSY;
+        SetActionButtonsInteractable(false);
+
+        // Fade to black
+        yield return StartCoroutine(FadeOverlay(1f, 1f));
+
+        // Hide tutorial battle visuals
+        zombie2Object.SetActive(false);
+        wifeObject.SetActive(false);
+        wifeUIObject.SetActive(false);
+
+        // Show dialogue
+        yield return StartCoroutine(
+            ShowTransitionDialogue(wifeUnit.unitName + " doesn't look well...", 1.5f)
+        );
+        yield return StartCoroutine(ShowTransitionDialogue("Her breathing grows ragged.", 1.5f));
+        yield return StartCoroutine(ShowTransitionDialogue("The infection takes hold.", 1.5f));
+        yield return StartCoroutine(
+            ShowTransitionDialogue(wifeUnit.unitName + " turns on you.", 1.5f)
+        );
+
+        // Clear dialogue before fade-in
+        dialogueText.text = "";
+
+        // Set up boss fight
+        bossObject.SetActive(true);
+        bossFightStarted = true;
+        enemyUnit = bossUnit;
+
+        bossMoveIndex = 0;
+        bossDefenseLowered = false;
+        enemyStunned = false;
+
+        RefreshBattleUIImmediate();
+
+        // Fade back in
+        yield return StartCoroutine(FadeOverlay(0f, 1f));
+
+        dialogueText.gameObject.SetActive(false);
+
+        SetBattleText(enemyUnit.unitName + " enters the battle!");
+        yield return new WaitForSeconds(1.5f);
+
+        StartNextAllyPhase();
+    }
+
+    // Starts the second phase of battle by swapping from zombie to boss (This is handled by PlayBossTransition Now)
+    IEnumerator StartBossFight()
+    {
+       yield return StartCoroutine(PlayBossTransition());
     }
 
     // Handles the opening setup for the battle
@@ -790,6 +893,9 @@ public class BattleManager : MonoBehaviour
     */
     bool IsPartyDefeated()
     {
+        if (bossFightStarted)
+            return playerUnit.IsDead();
+
         return playerUnit.IsDead() && wifeUnit.IsDead();
     }
 
@@ -804,6 +910,15 @@ public class BattleManager : MonoBehaviour
     */
     Unit GetRandomLivingAlly()
     {
+        // During boss phase, only the player is considered an ally target
+        if (bossFightStarted)
+        {
+            if (!playerUnit.IsDead())
+                return playerUnit;
+
+            return null;
+        }
+
         bool playerAlive = !playerUnit.IsDead();
         bool wifeAlive = !wifeUnit.IsDead();
 
@@ -820,7 +935,7 @@ public class BattleManager : MonoBehaviour
             return wifeUnit;
         }
 
-        return null; // Both are dead, should not happen if we check before calling
+        return null;
     }
 
     /*
@@ -1186,7 +1301,7 @@ public class BattleManager : MonoBehaviour
     {
         state = BattleState.BUSY;
 
-        if (wifeUnit.IsDead())
+        if (bossFightStarted || wifeUnit.IsDead())
         {
             state = BattleState.ENEMYTURN;
             StartCoroutine(EnemyTurn());
