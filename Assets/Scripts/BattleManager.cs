@@ -26,6 +26,13 @@ public class BattleManager : MonoBehaviour
     public TextMeshProUGUI rageButtonText;
     public TextMeshProUGUI dialogueText;
 
+    [Header("Player Sprites")]
+    public SpriteRenderer playerSpriteRenderer;
+    public Sprite playerNormalSprite;
+    public Sprite playerBlockingSprite;
+
+
+
     // HP Bars and SP Bars
     public Image playerHPBarFill;
     public Image wifeHPBarFill;
@@ -193,6 +200,22 @@ public class BattleManager : MonoBehaviour
         state = BattleState.START;
         StartCoroutine(SetupBattle());
     }
+
+    void SetPlayerBlockingSprite()
+{
+    if (playerSpriteRenderer != null && playerBlockingSprite != null)
+    {
+        playerSpriteRenderer.sprite = playerBlockingSprite;
+    }
+}
+
+void SetPlayerNormalSprite()
+{
+    if (playerSpriteRenderer != null && playerNormalSprite != null)
+    {
+        playerSpriteRenderer.sprite = playerNormalSprite;
+    }
+}
 
     // Spawns a floating damage number at a given world position
     void ShowDamagePopup(
@@ -964,6 +987,8 @@ public class BattleManager : MonoBehaviour
     */
     void StartNextAllyPhase()
     {
+        SetPlayerNormalSprite();
+        
         if (IsPartyDefeated())
         {
             state = BattleState.LOST;
@@ -1129,6 +1154,7 @@ public class BattleManager : MonoBehaviour
         BeginPlayerAction(false);
 
         playerUnit.isDefending = true;
+        SetPlayerBlockingSprite();
         SetBattleText("You brace for impact!");
 
         yield return new WaitForSeconds(1f);
@@ -1426,6 +1452,7 @@ public class BattleManager : MonoBehaviour
             damage = Mathf.Max(1, damage / 2);
             playerUnit.isDefending = false;
             blocked = true;
+            SetPlayerNormalSprite();
         }
 
         DamageAlly(target, damage, bossMoveType, isCritical);
