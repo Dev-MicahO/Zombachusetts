@@ -136,6 +136,16 @@ public class BattleManager : MonoBehaviour
 
     // Random Encounter
     private bool isRandomEncounterBattle = false;
+   
+    // Rewards Section
+    [Header("Rewards")]
+    public int randomEncounterXPReward = 25;
+    public int randomEncounterVictoryHeal = 20;
+    public int randomEncounterFleeHeal = 5;
+
+    // Flee RNG
+    [Header("Flee Settings")]
+    [Range(0f, 1f)] public float fleeSuccessChance = 0.7f;
 
     // Tutorial
     private int tutorialStep = 0;
@@ -235,6 +245,11 @@ public class BattleManager : MonoBehaviour
         if (GameSession.Instance != null)
         {
             isRandomEncounterBattle = GameSession.Instance.isRandomEncounter;
+        }
+        // Actually add good logic for setitng player health
+        if (GameSession.Instance != null)
+        {
+            GameSession.Instance.InitializePlayerStatsFromUnit(playerUnit);
         }
 
         if (isRandomEncounterBattle)
@@ -458,6 +473,7 @@ public class BattleManager : MonoBehaviour
             // RANDOM ENCOUNTER END
             if (isRandomEncounterBattle)
             {
+                ApplyRandomEncounterVictoryRewards();
                 state = BattleState.WON;
                 StartCoroutine(ReturnToOverworldAfterBattle());
                 yield break;
@@ -510,6 +526,11 @@ public class BattleManager : MonoBehaviour
     void DamageAlly(Unit target, int damage, string bossMoveType, bool isCritical = false)
     {
         target.TakeDamage(damage);
+        // Actually update HP for all sessions
+        if (target == playerUnit && isRandomEncounterBattle)
+        {
+            SyncPlayerHPToSession();
+        }
 
         if (bossMoveType == "Lunge")
             StartCoroutine(ShakeTargetCustom(target.transform, 0.5f, 0.2f));
@@ -933,6 +954,15 @@ public class BattleManager : MonoBehaviour
         bossObject.SetActive(false);
 
         enemyUnit = zombieUnit;
+         
+         // Load persistent player HP into the battle unit
+        if (GameSession.Instance != null)
+        {
+            GameSession.Instance.InitializePlayerStatsFromUnit(playerUnit);
+
+            playerUnit.maxHealth = GameSession.Instance.playerMaxHP;
+            playerUnit.currentHealth = GameSession.Instance.playerCurrentHP;
+        }
 
         // Reset SP
         playerCurrentSP = playerMaxSP;
@@ -1081,6 +1111,11 @@ public class BattleManager : MonoBehaviour
         yield return new WaitForSeconds(0.75f);
 
         playerUnit.TakeDamage(bleedDamage);
+        // Doesn't do anything right now but if random enemies get skills this will already be done
+        if (isRandomEncounterBattle)
+        {
+            SyncPlayerHPToSession();
+        }
         StartCoroutine(ShakeTarget(playerUnit.transform));
         StartCoroutine(FlashTarget(GetUnitSpriteRenderer(playerUnit)));
         ShowDamagePopup(playerDamagePoint, bleedDamage, "-", bleedDamageColor);
@@ -1420,17 +1455,37 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    // Ends the battle immediately (Pussy)
+    // Ends the battle if you have good RNG!
+    // Otherwise you're getting tagged for free
     IEnumerator PlayerFlee()
     {
         BeginPlayerAction(false);
 
-        SetBattleText("You fled from battle!");
+        float fleeRoll = Random.value;
 
-        yield return new WaitForSeconds(1f);
+        // If you're goated
+        if (fleeRoll <= fleeSuccessChance)
+        {
+            SetBattleText("You escaped!");
 
-        state = BattleState.FLED;
-        StartCoroutine(EndBattle());
+            ApplyRandomEncounterFleeRecovery();
+
+            yield return new WaitForSeconds(1f);
+
+            state = BattleState.FLED;
+            StartCoroutine(EndBattle());
+        }
+        else // Damn you're unlucky jit.
+        {
+            SetBattleText("You failed to escape!");
+            yield return new WaitForSeconds(1f);
+
+            SetBattleText("The enemy gets a free attack!");
+            yield return new WaitForSeconds(1f);
+
+            state = BattleState.ENEMYTURN;
+            StartCoroutine(EnemyTurn());
+        }
     }
 
     // Deals damage and stuns the enemy for one turn
@@ -1767,6 +1822,45 @@ public class BattleManager : MonoBehaviour
         yield return StartCoroutine(ResolvePlayerDefeatOrContinue());
     }
 
+    void SyncPlayerHPToSession()
+    {
+        if (GameSession.Instance != null)
+        {
+            GameSession.Instance.SetPlayerHP(playerUnit.currentHealth);
+        }
+    }
+
+    // New Method To give the player XP and keep persistent HP
+    void ApplyRandomEncounterVictoryRewards()
+    {
+        if (GameSession.Instance == null)
+            return;
+
+        GameSession.Instance.AddXP(randomEncounterXPReward);
+        GameSession.Instance.HealPlayer(randomEncounterVictoryHeal);
+
+        // Push healed values back into the active battle unit so UI matches immediately
+        playerUnit.maxHealth = GameSession.Instance.playerMaxHP;
+        playerUnit.currentHealth = GameSession.Instance.playerCurrentHP;
+
+        UpdateHPText();
+    }
+
+    // 
+    void ApplyRandomEncounterFleeRecovery()
+    {
+        if (GameSession.Instance == null)
+            return;
+
+        GameSession.Instance.HealPlayer(randomEncounterFleeHeal);
+
+        // Push healed values back into the active battle unit so UI matches immediately
+        playerUnit.maxHealth = GameSession.Instance.playerMaxHP;
+        playerUnit.currentHealth = GameSession.Instance.playerCurrentHP;
+
+        UpdateHPText();
+    }
+
     // Smoothly animates HP bars every frame toward their target values
     void Update()
     {
@@ -1803,14 +1897,19 @@ public class BattleManager : MonoBehaviour
     
     /* 
     Coroutine to handle returning to the overworld scene after winning a random encounter battle with just a zombie. 
-    Displays a victory message, waits for a moment, then loads the overworld scene specified in the GameSession.
+    Displays a victory message tells you how much xp you got, how much you healed, if you fled no rewards :(
+    waits for a moment, then loads the overworld scene specified in the GameSession.
     */
     IEnumerator ReturnToOverworldAfterBattle()
     {
         if (state == BattleState.FLED)
-            SetBattleText("You fled from battle!");
+        {
+            SetBattleText("You fled from battle and recovered " + randomEncounterFleeHeal + " HP!");
+        }
         else
-            SetBattleText("You defeated the zombie!");
+        {
+            SetBattleText("You defeated the zombie! Gained " + randomEncounterXPReward + " XP and recovered " + randomEncounterVictoryHeal + " HP!");
+        }
 
         yield return new WaitForSeconds(2f);
 
