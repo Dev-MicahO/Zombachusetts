@@ -33,7 +33,9 @@ public class GameSession : MonoBehaviour
     public int spPerLevel = 2;
     public int minDamagePerLevel = 2;
     public int maxDamagePerLevel = 2;
-
+    [Header("Party Members Acquired")]
+    public bool hasPartyMember2 = false;
+    public bool hasPartyMember3 = false;
 
     private void Awake()
     {

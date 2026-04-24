@@ -19,6 +19,8 @@ public class BattleManager : MonoBehaviour
 
     public Unit bossUnit;
     public Unit wifeUnit;
+    public Unit partyMember2Unit;
+    public Unit partyMember3Unit;
     
     // Enemey Slots for mutli-enemy fights
     [Header("Enemy Slots")]
@@ -115,6 +117,8 @@ public class BattleManager : MonoBehaviour
     public GameObject zombie3Object;
     public GameObject bossObject;
     public GameObject wifeObject;
+    public GameObject partyMember2Object;
+    public GameObject partyMember3Object;
     public GameObject wifeUIObject;
     public GameObject skipHint;
     public GameObject targetPanel;
@@ -257,6 +261,7 @@ public class BattleManager : MonoBehaviour
 
     // Random Encounter
     private bool isRandomEncounterBattle = false;
+    private int currentRandomEncounterEnemyCount = 1;
    
     // Rewards Section
     [Header("Rewards")]
@@ -432,6 +437,9 @@ public class BattleManager : MonoBehaviour
         // Wife is visible during the first phase as a companion, then becomes the boss in the second phase.
         wifeObject.SetActive(true);
         wifeUIObject.SetActive(true);
+        // Party Members are hidden until needed
+        partyMember2Object.SetActive(false);
+        partyMember3Object.SetActive(false);
 
         // Shows the main action panel and disables buttons until setup is done
         ShowActionPanel();
@@ -1119,57 +1127,28 @@ public class BattleManager : MonoBehaviour
     // Methods for Party Member Health UI - Since the player can be joined by the wife in the first phase, and potentially other allies in future battles, we need a flexible way to update multiple party member HP UI elements. These methods handle showing/hiding the correct number of party member slots and updating their HP text and bars based on the current living party members.
     void UpdatePartyMemberHPUI()
     {
-        List<Unit> partyMembers = GetLivingPartyMembers();
-
-        UpdatePartySlotUI(0, partyMembers);
-        UpdatePartySlotUI(1, partyMembers);
-        UpdatePartySlotUI(2, partyMembers);
+        UpdatePartySlotUI(0, wifeObject, wifeUnit, partyMember1HPText, partyMember1HPBarFill, ref partyMember1TargetHPFill);
+        UpdatePartySlotUI(1, partyMember2Object, partyMember2Unit, partyMember2HPText, partyMember2HPBarFill, ref partyMember2TargetHPFill);
+        UpdatePartySlotUI(2, partyMember3Object, partyMember3Unit, partyMember3HPText, partyMember3HPBarFill, ref partyMember3TargetHPFill);
     }
-
-    void UpdatePartySlotUI(int slotIndex, List<Unit> partyMembers)
+    void UpdatePartySlotUI(int slotIndex, GameObject memberObject, Unit memberUnit, TextMeshProUGUI hpText, Image hpBar, ref float targetFill)
     {
-        TextMeshProUGUI hpText = null;
-        Image hpBar = null;
+        bool hasMember = !bossFightStarted && memberObject != null && memberObject.activeSelf && memberUnit != null && !memberUnit.IsDead();
 
-        if (slotIndex == 0)
-        {
-            hpText = partyMember1HPText;
-            hpBar = partyMember1HPBarFill;
-        }
-        else if (slotIndex == 1)
-        {
-            hpText = partyMember2HPText;
-            hpBar = partyMember2HPBarFill;
-        }
-        else if (slotIndex == 2)
-        {
-            hpText = partyMember3HPText;
-            hpBar = partyMember3HPBarFill;
-        }
+        if (hpText != null)
+            hpText.gameObject.SetActive(hasMember);
 
-        if (hpText == null || hpBar == null)
-            return;
-
-        bool hasMember = slotIndex < partyMembers.Count;
-
-        hpText.gameObject.SetActive(hasMember);
-        hpBar.transform.parent.gameObject.SetActive(hasMember);
+        if (hpBar != null)
+            hpBar.transform.parent.gameObject.SetActive(hasMember);
 
         if (!hasMember)
+        {
+            targetFill = 0f;
             return;
+        }
 
-        Unit member = partyMembers[slotIndex];
-
-        hpText.text = member.unitName + " HP: " + member.currentHealth + "/" + member.maxHealth;
-
-        float fill = (float)member.currentHealth / member.maxHealth;
-
-        if (slotIndex == 0)
-            partyMember1TargetHPFill = fill;
-        else if (slotIndex == 1)
-            partyMember2TargetHPFill = fill;
-        else if (slotIndex == 2)
-            partyMember3TargetHPFill = fill;
+        hpText.text = memberUnit.unitName + " HP: " + memberUnit.currentHealth + "/" + memberUnit.maxHealth;
+        targetFill = (float)memberUnit.currentHealth / memberUnit.maxHealth;
     }
 
     // Shows or hides the second enemy's HP UI elements based on whether the second zombie is currently active in the battle. Called when updating HP text to ensure the correct UI is shown for the current enemy.
@@ -1454,6 +1433,7 @@ public class BattleManager : MonoBehaviour
         bossObject.SetActive(false);
 
         int roll = Random.Range(1, 101);
+        
 
         int enemyCount;
         // Random Chance between 1-3 enemies
@@ -1463,6 +1443,8 @@ public class BattleManager : MonoBehaviour
             enemyCount = 2;     // 35%
         else
             enemyCount = 3;     // 15%
+        
+        currentRandomEncounterEnemyCount = enemyCount;
         Debug.Log("Starting random encounter battle");
 
         transitionOverlay.alpha = 0f;
@@ -1472,15 +1454,18 @@ public class BattleManager : MonoBehaviour
         skipHint.SetActive(false);
 
         state = BattleState.PLAYERTURN;
-
-        /* Disable wife completely
+        
+        // Hide the wife in random encounters
         wifeObject.SetActive(false);
         wifeUIObject.SetActive(false);
-        */
-        // TEMP TEST: allow Eleanor in random encounters
-        wifeObject.SetActive(true);
-        wifeUIObject.SetActive(true);
         
+        // Show party members in random encounter
+        bool hasPM2 = GameSession.Instance != null && GameSession.Instance.hasPartyMember2;
+        bool hasPM3 = GameSession.Instance != null && GameSession.Instance.hasPartyMember3;
+
+        partyMember2Object.SetActive(hasPM2);
+        partyMember3Object.SetActive(hasPM3);
+
         // Always spawn at least 1
         zombieObject.SetActive(true);
         zombieUnit.currentHealth = zombieUnit.maxHealth;
@@ -1535,6 +1520,7 @@ public class BattleManager : MonoBehaviour
 
         // Reset UI
         RefreshBattleUIImmediate();
+        UpdatePartyMemberHPUI();
 
         SetBattleText("You have been ambushed!");
         ShowActionPanel();
@@ -1893,32 +1879,28 @@ public class BattleManager : MonoBehaviour
     */
     Unit GetRandomLivingAlly()
     {
-        // During Random Encounters During boss phase, only the player is considered an ally target
-        if (isRandomEncounterBattle || bossFightStarted)
+        // Sort through list of possible targets
+        List<Unit> possibleTargets = new List<Unit>();
+        // If duncan is alive hes a target
+        if (!playerUnit.IsDead())
+            possibleTargets.Add(playerUnit);
+        
+        if (!bossFightStarted)
         {
-            if (!playerUnit.IsDead())
-                return playerUnit;
+            if (wifeObject != null && wifeObject.activeSelf && !wifeUnit.IsDead())
+                possibleTargets.Add(wifeUnit);
 
+            if (partyMember2Object != null && partyMember2Object.activeSelf && !partyMember2Unit.IsDead())
+                possibleTargets.Add(partyMember2Unit);
+
+            if (partyMember3Object != null && partyMember3Object.activeSelf && !partyMember3Unit.IsDead())
+                possibleTargets.Add(partyMember3Unit);
+        }
+
+        if (possibleTargets.Count == 0)
             return null;
-        }
 
-        bool playerAlive = !playerUnit.IsDead();
-        bool wifeAlive = !wifeUnit.IsDead();
-
-        if (playerAlive && wifeAlive)
-        {
-            return Random.Range(0, 2) == 0 ? playerUnit : wifeUnit;
-        }
-        else if (playerAlive)
-        {
-            return playerUnit;
-        }
-        else if (wifeAlive)
-        {
-            return wifeUnit;
-        }
-
-        return null;
+        return possibleTargets[Random.Range(0, possibleTargets.Count)];
     }
 
     /*
@@ -2019,16 +2001,15 @@ public class BattleManager : MonoBehaviour
     {
         List<Unit> partyMembers = new List<Unit>();
 
-        /* // Current test companion: Eleanor 
-         if (!isRandomEncounterBattle && !bossFightStarted && wifeObject.activeSelf && !wifeUnit.IsDead())
-             partyMembers.Add(wifeUnit);
-
-         // Later we can add:
-         // if (pm2Object.activeSelf && !pm2Unit.IsDead())
-         //     partyMembers.Add(pm2Unit);
-         */
         if (!bossFightStarted && wifeObject.activeSelf && !wifeUnit.IsDead())
             partyMembers.Add(wifeUnit);
+        
+        if (!bossFightStarted && partyMember2Object != null && partyMember2Object.activeSelf && !partyMember2Unit.IsDead())
+        partyMembers.Add(partyMember2Unit);
+
+        if (!bossFightStarted && partyMember3Object != null && partyMember3Object.activeSelf && !partyMember3Unit.IsDead())
+        partyMembers.Add(partyMember3Unit);
+    
 
         return partyMembers;
     }
@@ -3122,15 +3103,22 @@ public class BattleManager : MonoBehaviour
 
             damage = ApplyCriticalHit(damage, playerCritChancePercent, playerCritMultiplier, out isCritical);
 
-            DamageEnemy(enemyUnit, damage, isCritical);
-
-            if (isCritical)
-                SetBattleText("Critical hit! " + partyMember.unitName + " dealt " + damage + " damage!");
-            else if (exploitedOpening)
-                SetBattleText(partyMember.unitName + " exploited the opening for " + damage + " damage!");
+            if (partyMember == partyMember2Unit)
+            {
+                DamageAllEnemies(damage, isCritical);
+                SetBattleText(partyMember.unitName + " hits all enemies for " + damage + " damage!");
+            }
             else
-                SetBattleText(partyMember.unitName + " dealt " + damage + " damage!");
+            {
+                DamageEnemy(enemyUnit, damage, isCritical);
 
+                if (isCritical)
+                    SetBattleText("Critical hit! " + partyMember.unitName + " dealt " + damage + " damage!");
+                else if (exploitedOpening)
+                    SetBattleText(partyMember.unitName + " exploited the opening for " + damage + " damage!");
+                else
+                    SetBattleText(partyMember.unitName + " dealt " + damage + " damage!");
+            }
             yield return new WaitForSeconds(1.5f);
 
             if (enemyUnit.IsDead())
@@ -3393,14 +3381,19 @@ public class BattleManager : MonoBehaviour
     void ApplyRandomEncounterVictoryRewards()
     {
         if (GameSession.Instance == null)
+        {
             return;
+        }
+        
+        int totalXPReward = randomEncounterXPReward * currentRandomEncounterEnemyCount;
+        int totalHealReward = randomEncounterVictoryHeal * currentRandomEncounterEnemyCount;
 
-        GameSession.Instance.AddXP(randomEncounterXPReward);
+        GameSession.Instance.AddXP(totalXPReward);
         //Apply leveled stats again before healing
         ApplyPersistentPlayerStats();
 
         // Heal player for winning a random encounter
-        GameSession.Instance.HealPlayer(randomEncounterVictoryHeal);
+        GameSession.Instance.HealPlayer(totalHealReward);
 
         // Push healed values back into the active battle unit so UI matches immediately
         ApplyPersistentPlayerStats();
@@ -3478,6 +3471,13 @@ public class BattleManager : MonoBehaviour
             playerUnit.currentHealth = playerUnit.maxHealth;
             debugRandomEncounterFromTutorial = true;
 
+            // Show party members in random encounter for debug purposes
+            if (GameSession.Instance != null)
+            {
+                GameSession.Instance.hasPartyMember2 = true;
+                GameSession.Instance.hasPartyMember3 = true;
+            }
+
             SetupRandomEncounterBattle();
         }
 
@@ -3507,7 +3507,7 @@ public class BattleManager : MonoBehaviour
     }
     else if (state == BattleState.WON)
     {
-        SetBattleText("You defeated the enemies! Gained " + randomEncounterXPReward + " XP and recovered " + randomEncounterVictoryHeal + " HP!");
+        SetBattleText("You defeated the enemies! Gained " + (randomEncounterXPReward * currentRandomEncounterEnemyCount) + " XP and recovered " + (randomEncounterVictoryHeal * currentRandomEncounterEnemyCount)  + " HP!");
     }
     else if (state == BattleState.LOST)
     {
