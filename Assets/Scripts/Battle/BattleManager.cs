@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,12 +10,21 @@ public class BattleManager : MonoBehaviour
     public BattleState state;
 
     // Units
+    [Header("Units")]
     public Unit playerUnit;
     public Unit enemyUnit;
     public Unit zombieUnit;
     public Unit zombie2Unit; // AOE will be hard so im going to add a second zombie after the 1st one dies
+    public Unit zombie3Unit;
+
     public Unit bossUnit;
     public Unit wifeUnit;
+    
+    // Enemey Slots for mutli-enemy fights
+    [Header("Enemy Slots")]
+    public Transform enemySlot1;
+    public Transform enemySlot2;
+    public Transform enemySlot3;
 
    // Sprites  
     [Header("Player Sprites")]
@@ -23,10 +33,15 @@ public class BattleManager : MonoBehaviour
     public Sprite playerBlockingSprite;
 
     // Battle Text
+    [Header("Battle Text")]
     public TextMeshProUGUI battleText;
     public TextMeshProUGUI playerHPText;
     public TextMeshProUGUI enemyHPText;
-    public TextMeshProUGUI wifeHPText;
+    public TextMeshProUGUI enemy2HPText;
+    public TextMeshProUGUI enemy3HPText;
+    public TextMeshProUGUI partyMember1HPText;
+    public TextMeshProUGUI partyMember2HPText;
+    public TextMeshProUGUI partyMember3HPText;
     public TextMeshProUGUI playerSPText;
     public TextMeshProUGUI Skill1ButtonText;
     public TextMeshProUGUI Skill2ButtonText;
@@ -39,52 +54,82 @@ public class BattleManager : MonoBehaviour
     private Coroutine activeTypingCoroutine;
 
     // Skip Intro Function
-    private bool skipIntroRequested = false;
-    private bool isInIntro = false;
+    private bool skipCutsceneRequested = false;
+    private bool isInCutscene = false;
 
 
 
     // HP Bars and SP Bars
+    [Header("HP/SP Bars")]
     public Image playerHPBarFill;
-    public Image wifeHPBarFill;
+    public Image partyMember1HPBarFill;
+    public Image partyMember2HPBarFill;
+    public Image partyMember3HPBarFill;
     public Image enemyHPBarFill;
+    public Image enemy2HPBarFill;
+    public Image enemy3HPBarFill;
     public Image playerSPBarFill;
 
     private float playerTargetHPFill;
     private float enemyTargetHPFill;
-    private float wifeTargetHPFill;
+    private float enemy2TargetHPFill;
+    private float enemy3TargetHPFill;
+    private float partyMember1TargetHPFill;
+    private float partyMember2TargetHPFill;
+    private float partyMember3TargetHPFill;
     private float playerTargetSPFill;
     public float hpBarSpeed = 2f;
 
     // Action Buttons
+    [Header("Action Buttons")]
     public Button attackButton;
     public Button defendButton;
     public Button skillButton;
     public Button fleeButton;
 
     // Skill Buttons
+    [Header("Skill Buttons")]
     public Button Skill1Button;
     public Button Skill2Button;
     public Button Skill3Button;
     public Button backButton;
 
+    // Target Buttons
+    [Header("Target Buttons")]
+    public Button targetButton1;
+    public Button targetButton2;
+    public Button targetButton3;
+    public Button targetBackButton;
+
+    public TextMeshProUGUI targetButton1Text;
+    public TextMeshProUGUI targetButton2Text;
+    public TextMeshProUGUI targetButton3Text;
+
     // Panels / UI
+    [Header("UI Elements")]
     public GameObject damagePopupPrefab;
     public GameObject actionPanel;
     public GameObject skillPanel;
     public GameObject zombieObject;
     public GameObject zombie2Object;
+    public GameObject zombie3Object;
     public GameObject bossObject;
     public GameObject wifeObject;
     public GameObject wifeUIObject;
     public GameObject skipHint;
+    public GameObject targetPanel;
 
     // Damage Popup Points
+    [Header("Damage Popup Points")]
     public Transform playerDamagePoint;
     public Transform enemyDamagePoint;
+    public Transform enemy1DamagePoint;
+    public Transform enemy2DamagePoint;
+    public Transform enemy3DamagePoint;
     public Transform wifeDamagePoint;
 
     // Canvas
+    [Header("Canvas")]
     public Canvas battleCanvas;
     public CanvasGroup transitionOverlay;
 
@@ -104,6 +149,31 @@ public class BattleManager : MonoBehaviour
     private int skill1Cost;
     private int skill2Cost;
     private int skill3Cost;
+
+    // Targeting
+    private enum TargetSelectionType
+    {
+        None,
+        Enemy,
+        Ally
+    }
+
+    private enum PendingTargetAction
+    {
+        None,
+        BasicAttack,
+        WarriorSkill1,
+        MageSkill1,
+        DoctorSkill1,
+        DoctorSkill2,
+        ThiefSkill1,
+        ThiefSkill3
+    }
+
+    private TargetSelectionType currentTargetSelectionType = TargetSelectionType.None;
+    private PendingTargetAction pendingTargetAction = PendingTargetAction.None;
+
+    private List<Unit> currentSelectableTargets = new List<Unit>();
 
     // Warrior Skills
     [Header("Warrior Skills")]
@@ -267,6 +337,7 @@ public class BattleManager : MonoBehaviour
     // Cheats
     [Header("Debug")]
     private bool debugMaxDamage = false;
+    private bool debugRandomEncounterFromTutorial = false;
 
     // Original values to restore later
     private int originalMinDamage;
@@ -344,7 +415,6 @@ public class BattleManager : MonoBehaviour
 
         // Start both HP bars at full
         playerTargetHPFill = 1f;
-        wifeTargetHPFill = 1f;
         enemyTargetHPFill = 1f;
 
         // Start SP at max as well
@@ -357,6 +427,7 @@ public class BattleManager : MonoBehaviour
         // Show zombie at start, hide boss until needed
         zombieObject.SetActive(true);
         zombie2Object.SetActive(false);
+        zombie3Object.SetActive(false);
         bossObject.SetActive(false);
         // Wife is visible during the first phase as a companion, then becomes the boss in the second phase.
         wifeObject.SetActive(true);
@@ -389,6 +460,8 @@ public class BattleManager : MonoBehaviour
         {
             GameSession.Instance.InitializePlayerStatsFromUnit(playerUnit);
         }
+        
+        UpdateEnemyHPUIVisibility();
 
         if (isRandomEncounterBattle)
         {
@@ -510,16 +583,50 @@ public class BattleManager : MonoBehaviour
     - Damage popup
     - HP UI update
     */
-    void DamageEnemy(int damage, bool isCritical = false)
+    void DamageEnemy(Unit target, int damage, bool isCritical = false)
     {
-        enemyUnit.TakeDamage(damage);
-        StartCoroutine(ShakeTarget(enemyUnit.transform));
-        StartCoroutine(FlashTarget(GetUnitSpriteRenderer(enemyUnit)));
+        if (target == null)
+            return;
+
+        target.TakeDamage(damage);
+        enemyUnit = target;
+
+        StartCoroutine(ShakeTarget(target.transform));
+        StartCoroutine(FlashTarget(GetUnitSpriteRenderer(target)));
+
+        Transform popupPoint = GetDamagePointForEnemy(target);
 
         if (isCritical)
-            ShowDamagePopup(enemyDamagePoint, damage, "-", criticalDamageColor);
+            ShowDamagePopup(popupPoint, damage, "-", criticalDamageColor);
         else
-            ShowDamagePopup(enemyDamagePoint, damage);
+            ShowDamagePopup(popupPoint, damage);
+
+        UpdateHPText();
+    }
+
+    // AOE version of DamageEnemy that can hit multiple targets 
+    void DamageAllEnemies(int damage, bool isCritical = false)
+    {
+        List<Unit> enemies = GetLivingEnemies();
+
+        foreach (Unit target in enemies)
+        {
+            target.TakeDamage(damage);
+            StartCoroutine(ShakeTarget(target.transform));
+            StartCoroutine(FlashTarget(GetUnitSpriteRenderer(target)));
+
+            Transform popupPoint = GetDamagePointForEnemy(target);
+
+            if (isCritical)
+                ShowDamagePopup(popupPoint, damage, "-", criticalDamageColor);
+            else
+                ShowDamagePopup(popupPoint, damage);
+        }
+
+        if (enemies.Count > 0)
+        {
+            enemyUnit = enemies[0];
+        }
 
         UpdateHPText();
     }
@@ -609,23 +716,45 @@ public class BattleManager : MonoBehaviour
     }
 
     /* Handles what happens after the player attacks:
-    - If enemy dies → transition to boss or win
+    - If enemies die → transition to boss or win
     - Otherwise → proceed to enemy turn
     More refactoring to clean up code overall
     */
     IEnumerator ResolveEnemyDefeatOrContinue()
     {
         yield return new WaitForSeconds(1.5f);
+        HideDefeatedEnemies();
+        
 
         if (enemyUnit.IsDead())
         {
             // RANDOM ENCOUNTER END
             if (isRandomEncounterBattle)
             {
-                ApplyRandomEncounterVictoryRewards();
-                state = BattleState.WON;
-                StartCoroutine(ReturnToOverworldAfterBattle());
-                yield break;
+                if (AreAllEnemiesDefeated())
+                {
+                    ApplyRandomEncounterVictoryRewards();
+                    state = BattleState.WON;
+                    StartCoroutine(ReturnToOverworldAfterBattle());
+                    yield break;
+                }
+                else
+                {
+                    List<Unit> remainingEnemies = GetLivingEnemies();
+
+                    if (remainingEnemies.Count > 0)
+                    {
+                        enemyUnit = remainingEnemies[0];
+                        UpdateHPText();
+                    }
+
+                    SetBattleText("Enemy defeated!");
+                    yield return new WaitForSeconds(1f);
+
+                    state = BattleState.ENEMYTURN;
+                    StartCoroutine(EnemyGroupTurn());
+                    yield break;
+                }
             }
 
             // Zombie 1 dies -> bring in Zombie 2
@@ -655,7 +784,7 @@ public class BattleManager : MonoBehaviour
             else
             {
                 state = BattleState.ENEMYTURN;
-                StartCoroutine(EnemyTurn());
+                StartCoroutine(EnemyGroupTurn());
             }
         }
     }
@@ -783,9 +912,21 @@ public class BattleManager : MonoBehaviour
         UpdateSPUI();
 
         playerHPBarFill.fillAmount = playerTargetHPFill;
-        wifeHPBarFill.fillAmount = wifeTargetHPFill;
         enemyHPBarFill.fillAmount = enemyTargetHPFill;
+        if (enemy2HPBarFill != null)
+        enemy2HPBarFill.fillAmount = enemy2TargetHPFill;
+        if (enemy3HPBarFill != null)
+            enemy3HPBarFill.fillAmount = enemy3TargetHPFill;
         playerSPBarFill.fillAmount = playerTargetSPFill;
+
+        if (partyMember1HPBarFill != null)
+            partyMember1HPBarFill.fillAmount = partyMember1TargetHPFill;
+
+        if (partyMember2HPBarFill != null)
+            partyMember2HPBarFill.fillAmount = partyMember2TargetHPFill;
+
+        if (partyMember3HPBarFill != null)
+            partyMember3HPBarFill.fillAmount = partyMember3TargetHPFill;
     }
 
     // Shows the normal action panel and hides the skill panel
@@ -793,6 +934,7 @@ public class BattleManager : MonoBehaviour
     {
         actionPanel.SetActive(true);
         skillPanel.SetActive(false);
+        targetPanel.SetActive(false);
     }
 
     // Shows the skill panel and hides the normal action panel
@@ -800,6 +942,54 @@ public class BattleManager : MonoBehaviour
     {
         actionPanel.SetActive(false);
         skillPanel.SetActive(true);
+        targetPanel.SetActive(false);
+    }
+
+    // Shows the targeting panel and hides the normal action panel
+    void ShowTargetPanel()
+    {
+        actionPanel.SetActive(false);
+        skillPanel.SetActive(false);
+        targetPanel.SetActive(true);
+    }
+
+    // Target Panel Logic
+     void OpenTargetPanel(List<Unit> targets, TargetSelectionType selectionType, PendingTargetAction actionType)
+    {
+        currentSelectableTargets = targets;
+        currentTargetSelectionType = selectionType;
+        pendingTargetAction = actionType;
+
+        ShowTargetPanel();
+
+        targetButton1.gameObject.SetActive(false);
+        targetButton2.gameObject.SetActive(false);
+        targetButton3.gameObject.SetActive(false);
+
+        if (targets.Count > 0)
+        {
+            targetButton1.gameObject.SetActive(true);
+            targetButton1Text.text = targets[0].unitName;
+        }
+
+        if (targets.Count > 1)
+        {
+            targetButton2.gameObject.SetActive(true);
+            targetButton2Text.text = targets[1].unitName;
+        }
+
+        if (targets.Count > 2)
+        {
+            targetButton3.gameObject.SetActive(true);
+            targetButton3Text.text = targets[2].unitName;
+        }
+
+        targetBackButton.gameObject.SetActive(true);
+
+        if (selectionType == TargetSelectionType.Enemy)
+            SetBattleText("Choose an enemy target.");
+        else
+            SetBattleText("Choose an ally target.");
     }
 
     // Updates skill button labels and enables/disables them based on whether the player has enough SP or not.
@@ -844,8 +1034,20 @@ public class BattleManager : MonoBehaviour
             transitionOverlay.blocksRaycasts = false;
         }
     }
+    // Make skips look better
+    IEnumerator QuickCutsceneSkipFlash()
+    {
+        transitionOverlay.blocksRaycasts = true;
 
-   // New method for a typewriter effect
+        transitionOverlay.alpha = 1f;
+        yield return new WaitForSeconds(0.15f);
+
+        yield return StartCoroutine(FadeOverlay(0f, 0.35f));
+
+        transitionOverlay.blocksRaycasts = false;
+    }
+
+    // New method for a typewriter effect
     IEnumerator TypeDialogue(string message)
     {
         dialogueText.text = "";
@@ -880,13 +1082,115 @@ public class BattleManager : MonoBehaviour
     // Updates HP text and sets the target fill values for the HP bars Ensures UI always reflects current HP after changes
     void UpdateHPText()
     {
-        playerHPText.text = playerUnit.unitName + " HP: " + playerUnit.currentHealth + "/" + playerUnit.maxHealth;
-        wifeHPText.text = wifeUnit.unitName + " HP: " + wifeUnit.currentHealth + "/" + wifeUnit.maxHealth;
-        enemyHPText.text = enemyUnit.unitName + " HP: " + enemyUnit.currentHealth + "/" + enemyUnit.maxHealth;
+        UpdateEnemyHPUIVisibility();
+        UpdatePartyMemberHPUI();
 
+        playerHPText.text = playerUnit.unitName + " HP: " + playerUnit.currentHealth + "/" + playerUnit.maxHealth;
         playerTargetHPFill = (float)playerUnit.currentHealth / playerUnit.maxHealth;
-        wifeTargetHPFill = (float)wifeUnit.currentHealth / wifeUnit.maxHealth;
-        enemyTargetHPFill = (float)enemyUnit.currentHealth / enemyUnit.maxHealth;
+
+
+        // Tutorial/story battle: always use ONLY the first enemy HP UI
+        if (!isRandomEncounterBattle)
+        {
+            enemyHPText.text = enemyUnit.unitName + " HP: " + enemyUnit.currentHealth + "/" + enemyUnit.maxHealth;
+            enemyTargetHPFill = (float)enemyUnit.currentHealth / enemyUnit.maxHealth;
+
+            enemy2TargetHPFill = 0f;
+            enemy3TargetHPFill = 0f;
+            return;
+        }
+
+        // Random encounter: use separate enemy HP UI slots
+        enemyHPText.text = zombieUnit.unitName + " HP: " + zombieUnit.currentHealth + "/" + zombieUnit.maxHealth;
+        enemyTargetHPFill = (float)zombieUnit.currentHealth / zombieUnit.maxHealth;
+
+        if (zombie2Object.activeSelf)
+        {
+            enemy2HPText.text = zombie2Unit.unitName + " HP: " + zombie2Unit.currentHealth + "/" + zombie2Unit.maxHealth;
+            enemy2TargetHPFill = (float)zombie2Unit.currentHealth / zombie2Unit.maxHealth;
+        }
+
+        if (zombie3Object.activeSelf)
+        {
+            enemy3HPText.text = zombie3Unit.unitName + " HP: " + zombie3Unit.currentHealth + "/" + zombie3Unit.maxHealth;
+            enemy3TargetHPFill = (float)zombie3Unit.currentHealth / zombie3Unit.maxHealth;
+        }
+    }
+    // Methods for Party Member Health UI - Since the player can be joined by the wife in the first phase, and potentially other allies in future battles, we need a flexible way to update multiple party member HP UI elements. These methods handle showing/hiding the correct number of party member slots and updating their HP text and bars based on the current living party members.
+    void UpdatePartyMemberHPUI()
+    {
+        List<Unit> partyMembers = GetLivingPartyMembers();
+
+        UpdatePartySlotUI(0, partyMembers);
+        UpdatePartySlotUI(1, partyMembers);
+        UpdatePartySlotUI(2, partyMembers);
+    }
+
+    void UpdatePartySlotUI(int slotIndex, List<Unit> partyMembers)
+    {
+        TextMeshProUGUI hpText = null;
+        Image hpBar = null;
+
+        if (slotIndex == 0)
+        {
+            hpText = partyMember1HPText;
+            hpBar = partyMember1HPBarFill;
+        }
+        else if (slotIndex == 1)
+        {
+            hpText = partyMember2HPText;
+            hpBar = partyMember2HPBarFill;
+        }
+        else if (slotIndex == 2)
+        {
+            hpText = partyMember3HPText;
+            hpBar = partyMember3HPBarFill;
+        }
+
+        if (hpText == null || hpBar == null)
+            return;
+
+        bool hasMember = slotIndex < partyMembers.Count;
+
+        hpText.gameObject.SetActive(hasMember);
+        hpBar.transform.parent.gameObject.SetActive(hasMember);
+
+        if (!hasMember)
+            return;
+
+        Unit member = partyMembers[slotIndex];
+
+        hpText.text = member.unitName + " HP: " + member.currentHealth + "/" + member.maxHealth;
+
+        float fill = (float)member.currentHealth / member.maxHealth;
+
+        if (slotIndex == 0)
+            partyMember1TargetHPFill = fill;
+        else if (slotIndex == 1)
+            partyMember2TargetHPFill = fill;
+        else if (slotIndex == 2)
+            partyMember3TargetHPFill = fill;
+    }
+
+    // Shows or hides the second enemy's HP UI elements based on whether the second zombie is currently active in the battle. Called when updating HP text to ensure the correct UI is shown for the current enemy.
+    void UpdateEnemyHPUIVisibility()
+    {
+        bool showExtraEnemyUI = isRandomEncounterBattle;
+
+        bool showEnemy2UI = showExtraEnemyUI && zombie2Object.activeSelf;
+        bool showEnemy3UI = showExtraEnemyUI && zombie3Object.activeSelf;
+
+        if (enemy2HPText != null)
+            enemy2HPText.gameObject.SetActive(showEnemy2UI);
+
+        if (enemy2HPBarFill != null)
+            enemy2HPBarFill.transform.parent.gameObject.SetActive(showEnemy2UI);
+
+        if (enemy3HPText != null)
+            enemy3HPText.gameObject.SetActive(showEnemy3UI);
+
+        if (enemy3HPBarFill != null)
+            enemy3HPBarFill.transform.parent.gameObject.SetActive(showEnemy3UI);
     }
 
     // Updates SP text and sets the target fill value for the SP bar Ensures UI always reflects current SP after changes
@@ -940,23 +1244,32 @@ public class BattleManager : MonoBehaviour
     // This includes fading to black, showing dialogue about the transformation, swapping visuals from the tutorial phase to the boss fight, and then fading back in to start the boss fight.
     IEnumerator PlayBossTransition()
     {
+        isInCutscene = true;
+        skipCutsceneRequested = false;
+        skipHint.SetActive(true);
+
         state = BattleState.BUSY;
         SetActionButtonsInteractable(false);
 
         // Fade to black
         yield return StartCoroutine(FadeOverlay(1f, 1f));
+        if (skipCutsceneRequested) goto SKIP;
 
         // Hide tutorial battle visuals
         zombie2Object.SetActive(false);
+        zombie3Object.SetActive(false);
         wifeObject.SetActive(false);
         wifeUIObject.SetActive(false);
 
         // Show dialogue
         yield return StartCoroutine(ShowTransitionDialogue(wifeUnit.unitName + " doesn't look well...", 2.5f));
+        if (skipCutsceneRequested) goto SKIP;
         yield return StartCoroutine(ShowTransitionDialogue("Her breathing grows ragged.", 2.5f));
+        if (skipCutsceneRequested) goto SKIP;
         yield return StartCoroutine(ShowTransitionDialogue("The infection takes hold.", 2.5f));
-        yield return StartCoroutine( ShowTransitionDialogue(wifeUnit.unitName + " turns on you.", 2.5f)
-        );
+        if (skipCutsceneRequested) goto SKIP;
+        yield return StartCoroutine( ShowTransitionDialogue(wifeUnit.unitName + " turns on you.", 2.5f));
+        if (skipCutsceneRequested) goto SKIP;
 
         // Clear dialogue before fade-in
         dialogueText.text = "";
@@ -971,7 +1284,7 @@ public class BattleManager : MonoBehaviour
         enemyStunned = false;
 
         RefreshBattleUIImmediate();
-
+       
         // Fade back in
         yield return StartCoroutine(FadeOverlay(0f, 1f));
 
@@ -979,13 +1292,61 @@ public class BattleManager : MonoBehaviour
 
         SetBattleText(enemyUnit.unitName + " enters the battle!");
         yield return new WaitForSeconds(1.5f);
+        isInCutscene = false;
+        skipCutsceneRequested = false;
+        skipHint.SetActive(false);
 
         StartNextAllyPhase();
+        yield break;
+
+        // Jump here if you dont wanna watch the cutscene :/ loser
+    SKIP:
+
+        Debug.Log("Boss transition skipped");
+
+        if (activeTypingCoroutine != null)
+        {
+            StopCoroutine(activeTypingCoroutine);
+            activeTypingCoroutine = null;
+        }
+
+        dialogueText.text = "";
+        dialogueText.gameObject.SetActive(false);
+        skipHint.SetActive(false);
+
+        // Force visuals into boss state
+        zombie2Object.SetActive(false);
+        zombie3Object.SetActive(false);
+        wifeObject.SetActive(false);
+        wifeUIObject.SetActive(false);
+
+        bossObject.SetActive(true);
+        bossFightStarted = true;
+        enemyUnit = bossUnit;
+
+        bossMoveIndex = 0;
+        bossDefenseLowered = false;
+        enemyStunned = false;
+
+        RefreshBattleUIImmediate();
+
+        // Quick cinematic flash instead of a hard cut
+        yield return StartCoroutine(QuickCutsceneSkipFlash());
+
+        isInCutscene = false;
+        skipCutsceneRequested = false;
+        skipHint.SetActive(false);
+
+        SetBattleText(enemyUnit.unitName + " enters the battle!");
+        yield return new WaitForSeconds(1.5f);
+
+        StartNextAllyPhase();
+        yield break;
     }
     
     bool ShouldSkipIntro()
     {
-        return skipIntroRequested;
+        return skipCutsceneRequested;
     }
 
     // Starts the second phase of battle by swapping from zombie to boss (This is handled by PlayBossTransition Now)
@@ -1002,8 +1363,8 @@ public class BattleManager : MonoBehaviour
         SetActionButtonsInteractable(false);
         skipHint.SetActive(true);
 
-        isInIntro = true;
-        skipIntroRequested = false;
+        isInCutscene = true;
+        skipCutsceneRequested = false;
 
         // Fade to black
         yield return StartCoroutine(FadeOverlay(1f, 1f));
@@ -1036,7 +1397,7 @@ public class BattleManager : MonoBehaviour
         dialogueText.gameObject.SetActive(false);
         skipHint.SetActive(false);
 
-        isInIntro = false;
+        isInCutscene = false;
         yield return StartCoroutine(SetupBattle());
         yield break;
 
@@ -1044,7 +1405,6 @@ public class BattleManager : MonoBehaviour
 
         Debug.Log("Intro skipped");
 
-        // Stop typing if active
         if (activeTypingCoroutine != null)
         {
             StopCoroutine(activeTypingCoroutine);
@@ -1055,13 +1415,17 @@ public class BattleManager : MonoBehaviour
         dialogueText.gameObject.SetActive(false);
         skipHint.SetActive(false);
 
-        // Immediately fade out overlay
-        transitionOverlay.alpha = 0f;
-        transitionOverlay.blocksRaycasts = false;
+        // Snap to gameplay-ready state
+        RefreshBattleUIImmediate();
 
-        isInIntro = false;
+        // Flash instead of hard cut
+        yield return StartCoroutine(QuickCutsceneSkipFlash());
 
-        yield return StartCoroutine(SetupBattle());
+        isInCutscene = false;
+        skipCutsceneRequested = false;
+
+        // Continue into battle flow
+        StartNextAllyPhase();
     }
 
     // Handles the opening setup for the battle
@@ -1082,7 +1446,23 @@ public class BattleManager : MonoBehaviour
 
     // Method to setup a random encounter battle with just a zombie
     void SetupRandomEncounterBattle()
-    {
+    {   
+        // Re-Hide any leftover enemy visuals from the previous random encounter
+        zombieObject.SetActive(false);
+        zombie2Object.SetActive(false);
+        zombie3Object.SetActive(false);
+        bossObject.SetActive(false);
+
+        int roll = Random.Range(1, 101);
+
+        int enemyCount;
+        // Random Chance between 1-3 enemies
+        if (roll <= 50)
+            enemyCount = 1;     // 50%
+        else if (roll <= 85)
+            enemyCount = 2;     // 35%
+        else
+            enemyCount = 3;     // 15%
         Debug.Log("Starting random encounter battle");
 
         transitionOverlay.alpha = 0f;
@@ -1093,18 +1473,56 @@ public class BattleManager : MonoBehaviour
 
         state = BattleState.PLAYERTURN;
 
-        // Disable wife completely
+        /* Disable wife completely
         wifeObject.SetActive(false);
         wifeUIObject.SetActive(false);
-
-        // Only one zombie
+        */
+        // TEMP TEST: allow Eleanor in random encounters
+        wifeObject.SetActive(true);
+        wifeUIObject.SetActive(true);
+        
+        // Always spawn at least 1
         zombieObject.SetActive(true);
-        zombie2Object.SetActive(false);
-        bossObject.SetActive(false);
+        zombieUnit.currentHealth = zombieUnit.maxHealth;
+
+        if (enemySlot1 != null)
+            zombieObject.transform.position = enemySlot1.position;
+
+        // 2nd enemy
+        if (enemyCount >= 2)
+        {
+            zombie2Object.SetActive(true);
+            zombie2Unit.currentHealth = zombie2Unit.maxHealth;
+
+            if (enemySlot2 != null)
+                zombie2Object.transform.position = enemySlot2.position;
+        }
+
+        // 3rd enemy
+        if (enemyCount == 3)
+        {
+            zombie3Object.SetActive(true);
+            zombie3Unit.currentHealth = zombie3Unit.maxHealth;
+
+            if (enemySlot3 != null)
+                zombie3Object.transform.position = enemySlot3.position;
+        }
+
+        zombieUnit.currentHealth = zombieUnit.maxHealth;
+        zombie2Unit.currentHealth = zombie2Unit.maxHealth;
+        zombie3Unit.currentHealth = zombie3Unit.maxHealth;
+         
+        if (enemySlot1 != null)
+        zombieObject.transform.position = enemySlot1.position;
+
+        if (enemySlot2 != null)
+        zombie2Object.transform.position = enemySlot2.position;
+
+        if (enemySlot3 != null)
+        zombie3Object.transform.position = enemySlot3.position;
 
         enemyUnit = zombieUnit;
-         
-         // Load persistent player stats into the battle unit
+        // Load persistent player stats into the battle unit
         if (GameSession.Instance != null)
         {
             GameSession.Instance.InitializePlayerStatsFromUnit(playerUnit);
@@ -1118,7 +1536,7 @@ public class BattleManager : MonoBehaviour
         // Reset UI
         RefreshBattleUIImmediate();
 
-        SetBattleText("A zombie appears!");
+        SetBattleText("You have been ambushed!");
         ShowActionPanel();
         SetActionButtonsInteractable(true);
     }
@@ -1161,7 +1579,7 @@ public class BattleManager : MonoBehaviour
             else
             {
                 state = BattleState.ENEMYTURN;
-                StartCoroutine(EnemyTurn());
+                StartCoroutine(EnemyGroupTurn());
             }
 
             yield break;
@@ -1518,6 +1936,102 @@ public class BattleManager : MonoBehaviour
 
         return playerDamagePoint;
     }
+    /* 
+    Returns the correct damage popup position for the given enemy.
+    - Zombie 1 → enemy1DamagePoint
+    - Zombie 2 → enemy2DamagePoint
+    - Zombie 3 -> enemy3DamagePoint
+
+    Ensures damage numbers appear in the correct location on screen.
+    */
+    Transform GetDamagePointForEnemy(Unit target)
+    {
+        // Tutorial/story battle only uses the first enemy slot
+        if (!isRandomEncounterBattle)
+            return enemy1DamagePoint;
+
+        // Random/multi-enemy battles use separate slots
+        if (target == zombieUnit)
+            return enemy1DamagePoint;
+
+        if (target == zombie2Unit)
+            return enemy2DamagePoint;
+
+        if (target == zombie3Unit)
+            return enemy3DamagePoint;
+
+        return enemy1DamagePoint;
+    }
+
+    // Gets a list of all living enemies (zombie 1, zombie 2, boss) Used for targeting when player uses skills that can hit multiple enemies or when the boss has multi-target attacks
+    List<Unit> GetLivingEnemies()
+    {
+        List<Unit> enemies = new List<Unit>();
+
+        if (zombieObject.activeSelf && !zombieUnit.IsDead())
+            enemies.Add(zombieUnit);
+
+        if (zombie2Object.activeSelf && !zombie2Unit.IsDead())
+            enemies.Add(zombie2Unit);
+
+        if (zombie3Object.activeSelf && !zombie3Unit.IsDead())
+            enemies.Add(zombie3Unit);
+
+        if (bossObject.activeSelf && !bossUnit.IsDead())
+            enemies.Add(bossUnit);
+
+        return enemies;
+    }
+
+    // Pretty easy to tell what this does
+    bool AreAllEnemiesDefeated()
+    {
+    return GetLivingEnemies().Count == 0;
+    }
+    // Removes defeated enemies from the battle scene and updates the UI accordingly Called after the player defeats an enemy to clear them from the battlefield
+    void HideDefeatedEnemies()
+    {
+        if (zombieUnit.IsDead() && zombieObject.activeSelf)
+            zombieObject.SetActive(false);
+
+        if (zombie2Unit.IsDead() && zombie2Object.activeSelf)
+            zombie2Object.SetActive(false);
+
+        if (zombie3Unit.IsDead() && zombie3Object.activeSelf)
+            zombie3Object.SetActive(false);
+
+        UpdateHPText();
+    }
+    List<Unit> GetLivingAllies()
+    {
+        List<Unit> allies = new List<Unit>();
+
+        if (!playerUnit.IsDead())
+            allies.Add(playerUnit);
+
+        if (!isRandomEncounterBattle && !bossFightStarted && wifeObject.activeSelf && !wifeUnit.IsDead())
+            allies.Add(wifeUnit);
+
+        return allies;
+    }
+
+    List<Unit> GetLivingPartyMembers()
+    {
+        List<Unit> partyMembers = new List<Unit>();
+
+        /* // Current test companion: Eleanor 
+         if (!isRandomEncounterBattle && !bossFightStarted && wifeObject.activeSelf && !wifeUnit.IsDead())
+             partyMembers.Add(wifeUnit);
+
+         // Later we can add:
+         // if (pm2Object.activeSelf && !pm2Unit.IsDead())
+         //     partyMembers.Add(pm2Unit);
+         */
+        if (!bossFightStarted && wifeObject.activeSelf && !wifeUnit.IsDead())
+            partyMembers.Add(wifeUnit);
+
+        return partyMembers;
+    }
 
     /*
     Handles transition back to the player's side after the enemy finishes its turn.
@@ -1565,8 +2079,19 @@ public class BattleManager : MonoBehaviour
         if (state != BattleState.PLAYERTURN)
             return;
 
-        SetActionButtonsInteractable(false);
-        StartCoroutine(PlayerAttack());
+        List<Unit> enemies = GetLivingEnemies();
+
+        if (enemies.Count == 0)
+            return;
+
+        if (enemies.Count == 1)
+        {
+            StartCoroutine(PlayerAttack(enemies[0]));
+        }
+        else
+        {
+            OpenTargetPanel(enemies, TargetSelectionType.Enemy, PendingTargetAction.BasicAttack);
+        }
     }
 
     // Called when the Defend button is pressed
@@ -1639,34 +2164,59 @@ public class BattleManager : MonoBehaviour
     public void OnSkill1Button()
     {
         if (state != BattleState.PLAYERTURN)
-            return; 
+            return;
+
         switch (GetCurrentPlayerClass())
         {
             case PlayerClass.Warrior:
-                StartCoroutine(PlayerShoulderBash());
+            {
+                List<Unit> enemies = GetLivingEnemies();
+                if (enemies.Count == 1)
+                    StartCoroutine(PlayerShoulderBash(enemies[0]));
+                else
+                    OpenTargetPanel(enemies, TargetSelectionType.Enemy, PendingTargetAction.WarriorSkill1);
                 break;
+            }
 
             case PlayerClass.Mage:
-                StartCoroutine(PlayerBloodPactBolt());
+            {
+                List<Unit> enemies = GetLivingEnemies();
+                if (enemies.Count == 1)
+                    StartCoroutine(PlayerBloodPactBolt(enemies[0]));
+                else
+                    OpenTargetPanel(enemies, TargetSelectionType.Enemy, PendingTargetAction.MageSkill1);
                 break;
+            }
 
             case PlayerClass.Doctor:
-                StartCoroutine(PlayerPatchWounds());
+            {
+                List<Unit> allies = GetLivingAllies();
+                if (allies.Count == 1)
+                    StartCoroutine(PlayerPatchWounds(allies[0]));
+                else
+                    OpenTargetPanel(allies, TargetSelectionType.Ally, PendingTargetAction.DoctorSkill1);
                 break;
-            
+            }
+
             case PlayerClass.Thief:
-                StartCoroutine(PlayerPocketSand());
+            {
+                List<Unit> enemies = GetLivingEnemies();
+                if (enemies.Count == 1)
+                    StartCoroutine(PlayerPocketSand(enemies[0]));
+                else
+                    OpenTargetPanel(enemies, TargetSelectionType.Enemy, PendingTargetAction.ThiefSkill1);
                 break;
+            }
         }
     }
 
     // Called when the 2nd skill button is pressed
-    public void OnSkill2Button()
+        public void OnSkill2Button()
     {
         if (state != BattleState.PLAYERTURN)
             return;
 
-                switch (GetCurrentPlayerClass())
+        switch (GetCurrentPlayerClass())
         {
             case PlayerClass.Warrior:
                 StartCoroutine(PlayerAllOutAttack());
@@ -1677,9 +2227,15 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case PlayerClass.Doctor:
-                StartCoroutine(PlayerFieldSurgery());
+            {
+                List<Unit> allies = GetLivingAllies();
+                if (allies.Count == 1)
+                    StartCoroutine(PlayerFieldSurgery(allies[0]));
+                else
+                    OpenTargetPanel(allies, TargetSelectionType.Ally, PendingTargetAction.DoctorSkill2);
                 break;
-            
+            }
+
             case PlayerClass.Thief:
                 StartCoroutine(PlayerStealth());
                 break;
@@ -1692,7 +2248,7 @@ public class BattleManager : MonoBehaviour
         if (state != BattleState.PLAYERTURN)
             return;
 
-                switch (GetCurrentPlayerClass())
+        switch (GetCurrentPlayerClass())
         {
             case PlayerClass.Warrior:
                 StartCoroutine(PlayerRage());
@@ -1705,9 +2261,89 @@ public class BattleManager : MonoBehaviour
             case PlayerClass.Doctor:
                 StartCoroutine(PlayerHappyGas());
                 break;
-            
+
             case PlayerClass.Thief:
-                StartCoroutine(PlayerSneakyStrike());
+            {
+                List<Unit> enemies = GetLivingEnemies();
+                if (enemies.Count == 1)
+                    StartCoroutine(PlayerSneakyStrike(enemies[0]));
+                else
+                    OpenTargetPanel(enemies, TargetSelectionType.Enemy, PendingTargetAction.ThiefSkill3);
+                break;
+            }
+        }
+    }
+    
+    // Target selection button for enemy 1
+    public void OnTargetButton1()
+    {
+        SelectTargetByIndex(0);
+    }
+    // Target selection button for enemy 2
+    public void OnTargetButton2()
+    {
+        SelectTargetByIndex(1);
+    }
+    // Target selection button for enemy 3
+    public void OnTargetButton3()
+    {
+        SelectTargetByIndex(2);
+    }
+
+    // Seperate back button logic for targeting panel so stuff doesnt break. Allows player to back out of target selection without performing an action and returns them to the main action panel.
+    public void OnTargetBackButton()
+    {
+        currentSelectableTargets.Clear();
+        currentTargetSelectionType = TargetSelectionType.None;
+        pendingTargetAction = PendingTargetAction.None;
+
+        ShowActionPanel();
+        SetActionButtonsInteractable(true);
+        SetBattleText("Choose an action.");
+    }
+
+    // Select Target Method
+    void SelectTargetByIndex(int index)
+    {
+        if (index < 0 || index >= currentSelectableTargets.Count)
+            return;
+
+        Unit selectedTarget = currentSelectableTargets[index];
+
+        currentSelectableTargets.Clear();
+        currentTargetSelectionType = TargetSelectionType.None;
+
+        PendingTargetAction actionToRun = pendingTargetAction;
+        pendingTargetAction = PendingTargetAction.None;
+
+        switch (actionToRun)
+        {
+            case PendingTargetAction.BasicAttack:
+                StartCoroutine(PlayerAttack(selectedTarget));
+                break;
+
+            case PendingTargetAction.WarriorSkill1:
+                StartCoroutine(PlayerShoulderBash(selectedTarget));
+                break;
+
+            case PendingTargetAction.MageSkill1:
+                StartCoroutine(PlayerBloodPactBolt(selectedTarget));
+                break;
+
+            case PendingTargetAction.DoctorSkill1:
+                StartCoroutine(PlayerPatchWounds(selectedTarget));
+                break;
+
+            case PendingTargetAction.DoctorSkill2:
+                StartCoroutine(PlayerFieldSurgery(selectedTarget));
+                break;
+
+            case PendingTargetAction.ThiefSkill1:
+                StartCoroutine(PlayerPocketSand(selectedTarget));
+                break;
+
+            case PendingTargetAction.ThiefSkill3:
+                StartCoroutine(PlayerSneakyStrike(selectedTarget));
                 break;
         }
     }
@@ -1718,10 +2354,12 @@ public class BattleManager : MonoBehaviour
     // - Applies damage modifiers
     // - Deals damage
     // - Advances turn
-    IEnumerator PlayerAttack()
+    IEnumerator PlayerAttack(Unit target)
     {
-        BeginPlayerAction(false);
+        BeginPlayerAction(true);
         yield return new WaitForSeconds(0.5f);
+
+        enemyUnit = target;
 
         bool exploitedOpening;
         bool rageBoosted;
@@ -1744,7 +2382,7 @@ public class BattleManager : MonoBehaviour
 
         damage = ApplyCriticalHit(damage, playerCritChancePercent, playerCritMultiplier, out isCritical);
 
-        DamageEnemy(damage, isCritical);
+        DamageEnemy(target, damage, isCritical);
 
         string attackMessage = GetBasicAttackMessage(damage, exploitedOpening, rageBoosted);
 
@@ -1754,7 +2392,7 @@ public class BattleManager : MonoBehaviour
         }
 
         SetBattleText(attackMessage);
-       
+        
         // Advance tutorial after using basic attack for the first time in the tutorial battle
         if (!isRandomEncounterBattle && !bossFightStarted && enemyUnit == zombieUnit && tutorialStep == 0)
         {
@@ -1794,7 +2432,7 @@ public class BattleManager : MonoBehaviour
         else
         {
             state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
+            StartCoroutine(EnemyGroupTurn());
         }
     }
 
@@ -1827,17 +2465,19 @@ public class BattleManager : MonoBehaviour
             yield return new WaitForSeconds(1f);
 
             state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
+            StartCoroutine(EnemyGroupTurn());
         }
     }
 
     // Deals damage and stuns the enemy for one turn
-    IEnumerator PlayerShoulderBash()
+    IEnumerator PlayerShoulderBash(Unit target)
     {
         if (!TrySpendSP(skill1Cost))
             yield break;
 
         BeginPlayerAction();
+
+        enemyUnit = target;
 
         SetBattleText("You use Shoulder Bash!");
         yield return new WaitForSeconds(0.5f);
@@ -1846,25 +2486,32 @@ public class BattleManager : MonoBehaviour
         bool rageBoosted;
         bool isCritical;
 
-        int damage = ApplyPlayerDamageBonuses(Random.Range(warriorSkill1MinDamage, warriorSkill1MaxDamage + 1),out exploitedOpening, out rageBoosted);
-        damage = ApplyCriticalHit(damage,playerCritChancePercent, playerCritMultiplier,out isCritical);
+        int damage = ApplyPlayerDamageBonuses(Random.Range(warriorSkill1MinDamage, warriorSkill1MaxDamage + 1),
+            out exploitedOpening,
+            out rageBoosted
+        );
 
-        DamageEnemy(damage, isCritical);
+        damage = ApplyCriticalHit(damage, playerCritChancePercent, playerCritMultiplier, out isCritical);
+
+        DamageEnemy(target, damage, isCritical);
         enemyStunned = true;
+
         string attackMessage = GetShoulderBashMessage(damage, exploitedOpening, rageBoosted);
+
         if (isCritical)
         {
             attackMessage = "Critical hit! " + attackMessage;
         }
+
         SetBattleText(attackMessage);
-        // Advance Tutorial if player uses Shoulder Bash for the first time in the tutorial
+	    // Advance Tutorial if player uses Shoulder Bash for the first time in the tutorial
         if (!isRandomEncounterBattle && !bossFightStarted && enemyUnit == zombieUnit && tutorialStep == 2)
         {
             tutorialStep = 3;
             backButton.interactable = true;
         }
 
-        if (rageBoosted)
+        if (playerRageActive || PlayerFKActive)
         {
             ConsumeBuffTurn();
         }
@@ -1872,7 +2519,7 @@ public class BattleManager : MonoBehaviour
         yield return StartCoroutine(ResolveEnemyDefeatOrContinue());
     }
 
-    // High damage attack (intended for AOE later)
+    // High damage AOE attack
     IEnumerator PlayerAllOutAttack()
     {
         if (!TrySpendSP(skill2Cost))
@@ -1887,25 +2534,36 @@ public class BattleManager : MonoBehaviour
         bool rageBoosted;
         bool isCritical;
 
-        int damage = ApplyPlayerDamageBonuses(Random.Range(warriorSkill2MinDamage, warriorSkill2MaxDamage + 1),out exploitedOpening, out rageBoosted);
-        damage = ApplyCriticalHit(damage,playerCritChancePercent,playerCritMultiplier,out isCritical);
+        int damage = ApplyPlayerDamageBonuses(Random.Range(warriorSkill2MinDamage, warriorSkill2MaxDamage + 1),
+            out exploitedOpening,
+            out rageBoosted
+        );
 
-        DamageEnemy(damage, isCritical);
+        if (PlayerFKActive)
+        {
+            damage += mageFKBonusDamage;
+        }
+
+        damage = ApplyCriticalHit(damage, playerCritChancePercent, playerCritMultiplier, out isCritical);
+
+        DamageAllEnemies(damage, isCritical);
 
         string attackMessage = GetAllOutAttackMessage(damage, exploitedOpening, rageBoosted);
+
         if (isCritical)
         {
             attackMessage = "Critical hit! " + attackMessage;
         }
+
         SetBattleText(attackMessage);
-        // Advance Tutorial if player uses All Out Attack for the first time in the tutorial
+	    //Advance Tutorial if player uses All Out Attack for the first time in the tutorial
         if (!isRandomEncounterBattle && !bossFightStarted && enemyUnit == zombieUnit && tutorialStep == 2)
         {
             tutorialStep = 3;
             backButton.interactable = true;
         }
 
-        if (rageBoosted)
+        if (playerRageActive)
         {
             ConsumeBuffTurn();
         }
@@ -1949,34 +2607,35 @@ public class BattleManager : MonoBehaviour
         else
         {
             state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
+            StartCoroutine(EnemyGroupTurn());
         }
     }
     // Mage Skills
-    IEnumerator PlayerBloodPactBolt()
+    IEnumerator PlayerBloodPactBolt(Unit target)
     {
         if (!TrySpendSP(skill1Cost))
             yield break;
 
         BeginPlayerAction();
 
+        enemyUnit = target;
+
         SetBattleText("You cast Blood Pact Bolt!");
-        // Advance Tutorial if player uses Blood Pact Bolt for the first time in the tutorial
+	    //Advance Tutorial if player uses Blood Pact Bolt for the first time in the tutorial
         if (!isRandomEncounterBattle && !bossFightStarted && enemyUnit == zombieUnit && tutorialStep == 2)
         {
             tutorialStep = 3;
             backButton.interactable = true;
         }
-        yield return new WaitForSeconds(1.0f);
+	    yield return new WaitForSeconds(1.0f);
 
         int selfDamage = Mathf.CeilToInt(playerUnit.maxHealth * (mageSkill1SelfDamagePercent / 100f));
         playerUnit.TakeDamage(selfDamage);
 
         UpdateHPText();
-        
-        // Congrats dumbass you killed yourself
+
         if (playerUnit.IsDead())
-        { 
+        {   // You died to your own skill, what a dummy
             SetBattleText("The blood price was too great!");
             yield return new WaitForSeconds(1f);
 
@@ -2014,23 +2673,25 @@ public class BattleManager : MonoBehaviour
         );
 
         if (PlayerFKActive)
-        damage += mageFKBonusDamage;
-
+        {
+            damage += mageFKBonusDamage;
+        }
 
         damage = ApplyCriticalHit(damage, playerCritChancePercent, playerCritMultiplier, out isCritical);
 
-        DamageEnemy(damage, isCritical);
-        UpdateHPText();
+        DamageEnemy(target, damage, isCritical);
 
         SetBattleText("Blood Pact Bolt deals " + damage + " damage at the cost of blood!");
+
         if (PlayerFKActive)
         {
             ConsumeBuffTurn();
         }
+
         yield return StartCoroutine(ResolveEnemyDefeatOrContinue());
     }
 
-    IEnumerator PlayerGraspOfTheAbyss()
+       IEnumerator PlayerGraspOfTheAbyss()
     {
         if (!TrySpendSP(skill2Cost))
             yield break;
@@ -2038,7 +2699,8 @@ public class BattleManager : MonoBehaviour
         BeginPlayerAction();
 
         SetBattleText("You summon Grasp of the Abyss!");
-        // Advance Tutorial if player uses GOTA for the first time in the tutorial
+	
+	// Advance Tutorial if player uses GOTA for the first time in the tutorial
         if (!isRandomEncounterBattle && !bossFightStarted && enemyUnit == zombieUnit && tutorialStep == 2)
         {
             tutorialStep = 3;
@@ -2061,7 +2723,7 @@ public class BattleManager : MonoBehaviour
 
         damage = ApplyCriticalHit(damage, playerCritChancePercent, playerCritMultiplier, out isCritical);
 
-        DamageEnemy(damage, isCritical);
+        DamageAllEnemies(damage, isCritical);
 
         int paralyzeRoll = Random.Range(1, 101);
         if (paralyzeRoll <= mageParalyzeChance)
@@ -2073,14 +2735,15 @@ public class BattleManager : MonoBehaviour
         bossDefenseLowered = true;
 
         if (enemyParalyzed)
-            SetBattleText("Grasp of the Abyss deals " + damage + " damage and paralyzes the enemy!");
+            SetBattleText("Grasp of the Abyss hits all enemies for " + damage + " damage and paralyzes them!");
         else
-            SetBattleText("Grasp of the Abyss deals " + damage + " damage and lowers the enemy's defenses!");
+            SetBattleText("Grasp of the Abyss hits all enemies for " + damage + " damage and lowers their defenses!");
 
         if (PlayerFKActive)
         {
             ConsumeBuffTurn();
         }
+
         yield return StartCoroutine(ResolveEnemyDefeatOrContinue());
     }
 
@@ -2150,12 +2813,12 @@ public class BattleManager : MonoBehaviour
         else
         {
             state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
+            StartCoroutine(EnemyGroupTurn());
         }
     }
     
     // Doctors Skills
-    IEnumerator PlayerPatchWounds()
+    IEnumerator PlayerPatchWounds(Unit target)
     {
         if (!TrySpendSP(skill1Cost))
             yield break;
@@ -2163,24 +2826,25 @@ public class BattleManager : MonoBehaviour
         BeginPlayerAction();
 
         int healAmount = doctorSkill1HealAmount;
-        playerUnit.currentHealth = Mathf.Min(playerUnit.maxHealth, playerUnit.currentHealth + healAmount);
+        target.currentHealth = Mathf.Min(target.maxHealth, target.currentHealth + healAmount);
 
-        if (isRandomEncounterBattle)
+        if (target == playerUnit && isRandomEncounterBattle)
         {
             SyncPlayerHPToSession();
         }
 
         UpdateHPText();
-        ShowDamagePopup(playerDamagePoint, healAmount, "+", Color.green);
+        ShowDamagePopup(GetDamagePointForAlly(target), healAmount, "+", Color.green);
 
-        SetBattleText("Patch Wounds restores " + healAmount + " HP!");
-        // Advance Tutorial if player uses Patch Wounds for the first time in the tutorial
+        SetBattleText("Patch Wounds restores " + healAmount + " HP to " + target.unitName + "!");
+        //Advance Tutorial if player uses Patch Wounds for the first time in the tutorial
         if (!isRandomEncounterBattle && !bossFightStarted && enemyUnit == zombieUnit && tutorialStep == 2)
         {
             tutorialStep = 3;
             backButton.interactable = true;
         }
         yield return new WaitForSeconds(1f);
+
 
         if (!wifeUnit.IsDead())
         {
@@ -2190,10 +2854,10 @@ public class BattleManager : MonoBehaviour
         else
         {
             state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
+            StartCoroutine(EnemyGroupTurn());
         }
     }
-    IEnumerator PlayerFieldSurgery()
+    IEnumerator PlayerFieldSurgery(Unit target)
     {
         if (!TrySpendSP(skill2Cost))
             yield break;
@@ -2201,12 +2865,15 @@ public class BattleManager : MonoBehaviour
         BeginPlayerAction();
 
         int healAmount = doctorSkill2HealAmount;
-        playerUnit.currentHealth = Mathf.Min(playerUnit.maxHealth, playerUnit.currentHealth + healAmount);
+        target.currentHealth = Mathf.Min(target.maxHealth, target.currentHealth + healAmount);
 
-        playerBleeding = false;
-        bleedTurnsRemaining = 0;
+        if (target == playerUnit)
+        {
+            playerBleeding = false;
+            bleedTurnsRemaining = 0;
+        }
 
-        if (isRandomEncounterBattle)
+        if (target == playerUnit && isRandomEncounterBattle)
         {
             SyncPlayerHPToSession();
         }
@@ -2214,15 +2881,17 @@ public class BattleManager : MonoBehaviour
         doctorSkipNextTurn = true;
 
         UpdateHPText();
-        ShowDamagePopup(playerDamagePoint, healAmount, "+", Color.green);
+        ShowDamagePopup(GetDamagePointForAlly(target), healAmount, "+", Color.green);
 
-        SetBattleText("Field Surgery restores " + healAmount + " HP and removes status effects!");
-        // Advance Tutorial if player uses Field Surgery for the first time in the tutorial
+	    //Advance Tutorial if player uses Field Surgery for the first time in the tutorial
         if (!isRandomEncounterBattle && !bossFightStarted && enemyUnit == zombieUnit && tutorialStep == 2)
         {
             tutorialStep = 3;
             backButton.interactable = true;
         }
+	    yield return new WaitForSeconds(1f);
+
+        SetBattleText("Field Surgery restores " + healAmount + " HP to " + target.unitName + " and removes status effects!");
         yield return new WaitForSeconds(1f);
 
         if (!wifeUnit.IsDead())
@@ -2233,7 +2902,7 @@ public class BattleManager : MonoBehaviour
         else
         {
             state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
+            StartCoroutine(EnemyGroupTurn());
         }
     }
     IEnumerator PlayerHappyGas()
@@ -2263,17 +2932,19 @@ public class BattleManager : MonoBehaviour
         else
         {
             state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
+            StartCoroutine(EnemyGroupTurn());
         }
     }
 
     // Thief Skills
-    IEnumerator PlayerPocketSand()
+    IEnumerator PlayerPocketSand(Unit target)
     {
         if (!TrySpendSP(skill1Cost))
             yield break;
 
         BeginPlayerAction();
+
+        enemyUnit = target;
 
         int blindRoll = Random.Range(1, 101);
 
@@ -2281,13 +2952,14 @@ public class BattleManager : MonoBehaviour
         {
             enemyBlinded = true;
             enemyBlindedTurnsRemaining = thiefBlindDurationTurns;
-            SetBattleText("Pocket Sand blinds the enemy!");
+            SetBattleText("Pocket Sand blinds " + target.unitName + "!");
         }
         else
         {
-            SetBattleText("Pocket Sand hits, but the enemy fights through it!");
+            SetBattleText("Pocket Sand hits " + target.unitName + ", but they fight through it!");
         }
-        // Advance Tutorial if player uses Pocket Sand for the first time in the tutorial
+	
+ 	    //Advance Tutorial if player uses Pocket Sand for the first time in the tutorial
         if (!isRandomEncounterBattle && !bossFightStarted && enemyUnit == zombieUnit && tutorialStep == 2)
         {
             tutorialStep = 3;
@@ -2303,11 +2975,11 @@ public class BattleManager : MonoBehaviour
         else
         {
             state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
+            StartCoroutine(EnemyGroupTurn());
         }
     }
 
-        IEnumerator PlayerStealth()
+    IEnumerator PlayerStealth()
     {
         if (!TrySpendSP(skill2Cost))
             yield break;
@@ -2335,16 +3007,18 @@ public class BattleManager : MonoBehaviour
         else
         {
             state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
+            StartCoroutine(EnemyGroupTurn());
         }
     }
 
-    IEnumerator PlayerSneakyStrike()
+    IEnumerator PlayerSneakyStrike(Unit target)
     {
         if (!TrySpendSP(skill3Cost))
             yield break;
 
         BeginPlayerAction();
+
+        enemyUnit = target;
 
         yield return new WaitForSeconds(0.5f);
 
@@ -2352,8 +3026,7 @@ public class BattleManager : MonoBehaviour
         bool rageBoosted;
         bool isCritical;
 
-        int damage = ApplyPlayerDamageBonuses(
-            Random.Range(thiefSkill3MinDamage, thiefSkill3MaxDamage + 1),
+        int damage = ApplyPlayerDamageBonuses(Random.Range(thiefSkill3MinDamage, thiefSkill3MaxDamage + 1),
             out exploitedOpening,
             out rageBoosted
         );
@@ -2368,10 +3041,11 @@ public class BattleManager : MonoBehaviour
 
         damage = ApplyCriticalHit(damage, playerCritChancePercent, playerCritMultiplier, out isCritical);
 
-        DamageEnemy(damage, isCritical);
+        DamageEnemy(target, damage, isCritical);
 
-        SetBattleText("Sneaky Strike deals " + damage + " damage!");
-        // Advance Tutorial if player uses Sneaky Strike for the first time in the tutorial
+        SetBattleText("Sneaky Strike deals " + damage + " damage to " + target.unitName + "!");
+
+	    //Advance Tutorial if player uses Sneaky Strike for the first time in the tutorial
         if (!isRandomEncounterBattle && !bossFightStarted && enemyUnit == zombieUnit && tutorialStep == 2)
         {
             tutorialStep = 3;
@@ -2384,10 +3058,10 @@ public class BattleManager : MonoBehaviour
     // ===================================
 
     /*
-    Handles the wife's automatic turn.
+    Handles the Party Member's automatic turn.
     
     Behavior:
-    - Skips turn if wife is dead
+    - Skips turn if party member is dead
     - Attacks enemy automatically
     - Can crit using player crit stats (for now)
     - Can exploit boss defense break (Agonized Lunge)
@@ -2400,78 +3074,88 @@ public class BattleManager : MonoBehaviour
     */
     IEnumerator WifeTurn()
     {
-        //If its a random encounter battle dont use wife logic
-        if (isRandomEncounterBattle)
+        yield return StartCoroutine(PartyMemberTurns());
+    }
+    IEnumerator PartyMemberTurns()
+    {
+        //if (isRandomEncounterBattle || bossFightStarted)
+        if(bossFightStarted)
         {
             state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
+            StartCoroutine(EnemyGroupTurn());
             yield break;
         }
-       
+
+        List<Unit> partyMembers = GetLivingPartyMembers();
+
+        if (partyMembers.Count == 0)
+        {
+            state = BattleState.ENEMYTURN;
+            StartCoroutine(EnemyGroupTurn());
+            yield break;
+        }
+
         state = BattleState.BUSY;
 
-        if (bossFightStarted || wifeUnit.IsDead())
+        foreach (Unit partyMember in partyMembers)
         {
-            state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
-            yield break;
-        }
+            if (partyMember == null || partyMember.IsDead())
+                continue;
 
-        SetBattleText(wifeUnit.unitName + " attacks!");
-        yield return new WaitForSeconds(0.5f);
+            if (enemyUnit == null || enemyUnit.IsDead())
+                break;
 
-        bool exploitedOpening = false;
-        bool isCritical = false;
+            SetBattleText(partyMember.unitName + " attacks!");
+            yield return new WaitForSeconds(0.5f);
 
-        int damage = wifeUnit.GetDamage();
+            bool exploitedOpening = false;
+            bool isCritical = false;
 
-        if (bossFightStarted && enemyUnit == bossUnit && bossDefenseLowered)
-        {
-            damage += 5;
-            bossDefenseLowered = false;
-            exploitedOpening = true;
-        }
+            int damage = partyMember.GetDamage();
 
-        damage = ApplyCriticalHit(damage,playerCritChancePercent,playerCritMultiplier,out isCritical);
-
-        DamageEnemy(damage, isCritical);
-
-        string wifeMessage;
-
-        if (exploitedOpening && isCritical)
-            wifeMessage ="Critical hit! "+ wifeUnit.unitName + " exploited the opening for "+ damage + " damage!";
-        else if (exploitedOpening)
-            wifeMessage = wifeUnit.unitName + " exploited the opening for " + damage + " damage!";
-        else if (isCritical)
-            wifeMessage = "Critical hit! " + wifeUnit.unitName + " dealt " + damage + " damage!";
-        else
-            wifeMessage = wifeUnit.unitName + " dealt " + damage + " damage!";
-
-        SetBattleText(wifeMessage);
-
-        yield return new WaitForSeconds(1.5f);
-
-        if (enemyUnit.IsDead())
-        {
-            if (enemyUnit == zombieUnit && !zombie2Spawned)
+            if (bossFightStarted && enemyUnit == bossUnit && bossDefenseLowered)
             {
-                StartCoroutine(StartSecondZombieFight());
+                damage += 5;
+                bossDefenseLowered = false;
+                exploitedOpening = true;
             }
-            else if (!bossFightStarted)
-            {
-                StartCoroutine(StartBossFight());
-            }
+
+            damage = ApplyCriticalHit(damage, playerCritChancePercent, playerCritMultiplier, out isCritical);
+
+            DamageEnemy(enemyUnit, damage, isCritical);
+
+            if (isCritical)
+                SetBattleText("Critical hit! " + partyMember.unitName + " dealt " + damage + " damage!");
+            else if (exploitedOpening)
+                SetBattleText(partyMember.unitName + " exploited the opening for " + damage + " damage!");
             else
+                SetBattleText(partyMember.unitName + " dealt " + damage + " damage!");
+
+            yield return new WaitForSeconds(1.5f);
+
+            if (enemyUnit.IsDead())
             {
-                state = BattleState.WON;
-                StartCoroutine(EndBattle());
+                if (enemyUnit == zombieUnit && !zombie2Spawned)
+                {
+                    StartCoroutine(StartSecondZombieFight());
+                    yield break;
+                }
+                else if (!bossFightStarted && enemyUnit == zombie2Unit)
+                {
+                    StartCoroutine(StartBossFight());
+                    yield break;
+                }
+                else
+                {
+                    state = BattleState.WON;
+                    StartCoroutine(EndBattle());
+                    yield break;
+                }
             }
         }
-        else
-        {
-            state = BattleState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
-        }
+
+        state = BattleState.ENEMYTURN;
+        StartCoroutine(EnemyGroupTurn());
     }
 
     /*
@@ -2651,13 +3335,47 @@ public class BattleManager : MonoBehaviour
             if (enemyBlindedTurnsRemaining <= 0)
                 enemyBlinded = false;
         }
-        // Rudamentary reveal logic since there are no true aoe attacks;
+        // Rudamentary reveal logic since there are no true aoe attacks from enemies;
         if (thiefStealthed && bossMoveType == "Lunge")
         {
             thiefStealthed = false;
             stealthTurnsRemaining = 0;
             SetBattleText("The area attack reveals you!");
             yield return new WaitForSeconds(0.75f);
+        }
+
+        yield return new WaitForSeconds(0.75f);
+    }
+    // Handles the enemy turn for each living enemy in a group fight
+    IEnumerator EnemyGroupTurn()
+    {
+        state = BattleState.BUSY;
+
+        List<Unit> enemies = GetLivingEnemies();
+
+        foreach (Unit actingEnemy in enemies)
+        {
+            if (actingEnemy == null || actingEnemy.IsDead())
+                continue;
+
+            enemyUnit = actingEnemy;
+            UpdateHPText();
+
+            yield return StartCoroutine(EnemyTurn());
+
+            if (IsPartyDefeated())
+            {
+                state = BattleState.LOST;
+                StartCoroutine(EndBattle());
+                yield break;
+            }
+        }
+
+        if (IsPartyDefeated())
+        {
+            state = BattleState.LOST;
+            StartCoroutine(EndBattle());
+            yield break;
         }
 
         yield return StartCoroutine(ResolvePlayerDefeatOrContinue());
@@ -2709,9 +3427,18 @@ public class BattleManager : MonoBehaviour
     // Smoothly animates HP bars every frame toward their target values
     void Update()
     {
-        if (isInIntro && Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame)
+        if (partyMember1HPBarFill != null && partyMember1HPBarFill.gameObject.activeSelf)
+            partyMember1HPBarFill.fillAmount = Mathf.Lerp(partyMember1HPBarFill.fillAmount, partyMember1TargetHPFill, Time.deltaTime * hpBarSpeed);
+
+        if (partyMember2HPBarFill != null && partyMember2HPBarFill.gameObject.activeSelf)
+            partyMember2HPBarFill.fillAmount = Mathf.Lerp(partyMember2HPBarFill.fillAmount, partyMember2TargetHPFill, Time.deltaTime * hpBarSpeed);
+
+        if (partyMember3HPBarFill != null && partyMember3HPBarFill.gameObject.activeSelf)
+            partyMember3HPBarFill.fillAmount = Mathf.Lerp(partyMember3HPBarFill.fillAmount, partyMember3TargetHPFill, Time.deltaTime * hpBarSpeed);
+
+        if (isInCutscene && Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame)
         {
-            skipIntroRequested = true;
+            skipCutsceneRequested = true;
         }
 
         if (state == BattleState.PLAYERTURN &&Keyboard.current != null && Keyboard.current.dKey.wasPressedThisFrame)
@@ -2733,28 +3460,59 @@ public class BattleManager : MonoBehaviour
                 SetBattleText("Damage values returned to normal");
             }
         }
-        
-        playerHPBarFill.fillAmount = Mathf.Lerp(playerHPBarFill.fillAmount,playerTargetHPFill,Time.deltaTime * hpBarSpeed);
-        wifeHPBarFill.fillAmount = Mathf.Lerp(wifeHPBarFill.fillAmount,wifeTargetHPFill,Time.deltaTime * hpBarSpeed);
-        enemyHPBarFill.fillAmount = Mathf.Lerp(enemyHPBarFill.fillAmount,enemyTargetHPFill, Time.deltaTime * hpBarSpeed);
-        playerSPBarFill.fillAmount = Mathf.Lerp(playerSPBarFill.fillAmount,playerTargetSPFill,Time.deltaTime * hpBarSpeed);
+
+        // Debug key to start random encounter battle for testing purposes
+        if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
+        {
+            Debug.Log("DEBUG: Starting random encounter test");
+
+            StopAllCoroutines();
+
+            isInCutscene = false;
+            skipCutsceneRequested = false;
+
+            isRandomEncounterBattle = true;
+            bossFightStarted = false;
+            zombie2Spawned = false;
+
+            playerUnit.currentHealth = playerUnit.maxHealth;
+            debugRandomEncounterFromTutorial = true;
+
+            SetupRandomEncounterBattle();
+        }
+
+        playerHPBarFill.fillAmount = Mathf.Lerp(playerHPBarFill.fillAmount, playerTargetHPFill, Time.deltaTime * hpBarSpeed);
+        enemyHPBarFill.fillAmount = Mathf.Lerp(enemyHPBarFill.fillAmount, enemyTargetHPFill, Time.deltaTime * hpBarSpeed);
+        if (enemy2HPBarFill != null && enemy2HPBarFill.gameObject.activeSelf)
+        {
+            enemy2HPBarFill.fillAmount = Mathf.Lerp(enemy2HPBarFill.fillAmount,enemy2TargetHPFill,Time.deltaTime * hpBarSpeed);
+        }
+        if (enemy3HPBarFill != null && enemy3HPBarFill.gameObject.activeSelf)
+        {
+            enemy3HPBarFill.fillAmount = Mathf.Lerp(enemy3HPBarFill.fillAmount,enemy3TargetHPFill,Time.deltaTime * hpBarSpeed);
+        }
+        playerSPBarFill.fillAmount = Mathf.Lerp(playerSPBarFill.fillAmount, playerTargetSPFill, Time.deltaTime * hpBarSpeed);
     }
-    
+
     /* 
     Coroutine to handle returning to the overworld scene after winning a random encounter battle with just a zombie. 
     Displays a victory message tells you how much xp you got, how much you healed, if you fled no rewards :(
     waits for a moment, then loads the overworld scene specified in the GameSession.
     */
     IEnumerator ReturnToOverworldAfterBattle()
+{
+    if (state == BattleState.FLED)
     {
-        if (state == BattleState.FLED)
-        {
-            SetBattleText("You fled from battle and recovered " + randomEncounterFleeHeal + " HP!");
-        }
-        else
-        {
-            SetBattleText("You defeated the zombie! Gained " + randomEncounterXPReward + " XP and recovered " + randomEncounterVictoryHeal + " HP!");
-        }
+        SetBattleText("You fled from battle and recovered " + randomEncounterFleeHeal + " HP!");
+    }
+    else if (state == BattleState.WON)
+    {
+        SetBattleText("You defeated the enemies! Gained " + randomEncounterXPReward + " XP and recovered " + randomEncounterVictoryHeal + " HP!");
+    }
+    else if (state == BattleState.LOST)
+    {
+        SetBattleText("You were defeated...");
+    }
 
         yield return new WaitForSeconds(2f);
 
@@ -2763,7 +3521,23 @@ public class BattleManager : MonoBehaviour
             GameSession.Instance.isRandomEncounter = false;
         }
 
-        SceneChanger.Instance.PreviousScene();
+        if (debugRandomEncounterFromTutorial)
+        {   
+            debugRandomEncounterFromTutorial = false;
+            
+            if (GameSession.Instance != null)
+            {
+                GameSession.Instance.tutorialBattleCompleted = true;
+                GameSession.Instance.isRandomEncounter = false;
+            }
+
+            SceneChanger.Instance.LoadScene("PlayerHouse");
+            
+        }
+        else
+        {
+            SceneChanger.Instance.PreviousScene();
+        }
     }
 
 
