@@ -95,7 +95,10 @@ public class BattleManager : MonoBehaviour
     public Button Skill2Button;
     public Button Skill3Button;
     public Button backButton;
-
+    
+    [Header("Skill Unlock Levels")]
+    public int skill2UnlockLevel = 3;
+    public int skill3UnlockLevel = 5;
     // Target Buttons
     [Header("Target Buttons")]
     public Button targetButton1;
@@ -1003,13 +1006,29 @@ public class BattleManager : MonoBehaviour
     // Updates skill button labels and enables/disables them based on whether the player has enough SP or not.
     void UpdateSkillButtonsUI()
     {
+        int playerLevel = 1;
+
+        if (GameSession.Instance != null)
+            playerLevel = GameSession.Instance.playerLevel;
+
+        bool skill2Unlocked = playerLevel >= skill2UnlockLevel;
+        bool skill3Unlocked = playerLevel >= skill3UnlockLevel;
+
         Skill1ButtonText.text = skill1Name + "\nSP " + skill1Cost;
-        Skill2ButtonText.text = skill2Name + "\nSP " + skill2Cost;
-        Skill3ButtonText.text = skill3Name + "\nSP " + skill3Cost;
+
+        if (skill2Unlocked)
+            Skill2ButtonText.text = skill2Name + "\nSP " + skill2Cost;
+        else
+            Skill2ButtonText.text = "Locked\nLv " + skill2UnlockLevel;
+
+        if (skill3Unlocked)
+            Skill3ButtonText.text = skill3Name + "\nSP " + skill3Cost;
+        else
+            Skill3ButtonText.text = "Locked\nLv " + skill3UnlockLevel;
 
         Skill1Button.interactable = playerCurrentSP >= skill1Cost;
-        Skill2Button.interactable = playerCurrentSP >= skill2Cost;
-        Skill3Button.interactable = playerCurrentSP >= skill3Cost;
+        Skill2Button.interactable = skill2Unlocked && playerCurrentSP >= skill2Cost;
+        Skill3Button.interactable = skill3Unlocked && playerCurrentSP >= skill3Cost;
     }
 
     // Made a method for updating battle text i got tired of typing BattleText.text = "some message" in every method that needs to update the battle text.
@@ -1795,8 +1814,6 @@ public class BattleManager : MonoBehaviour
         enemyStunned = false;
         SetBattleText(enemyUnit.unitName + " is stunned and cannot move!");
         yield return new WaitForSeconds(1f);
-
-        StartNextAllyPhase();
     }
 
     /* Handles what happens after the enemy attacks:
