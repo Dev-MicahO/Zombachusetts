@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 5f694b21518b60f4a9df36a1857f1c39
+guid: 68403c56aeb860945bf16aa9714de1ba
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -8395914958387800481
-    second: BigBamIcon_0
+      213: 8523333546307193184
+    second: evilCat_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,12 +100,12 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: BigBamIcon_0
+      name: evilCat_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 16
+        width: 15
         height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: f5618ec24d7bb7b80800000000000000
-      internalID: -8395914958387800481
+      spriteID: 0698fc9a3b6f84670800000000000000
+      internalID: 8523333546307193184
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      BigBamIcon_0: -8395914958387800481
+      evilCat_0: 8523333546307193184
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

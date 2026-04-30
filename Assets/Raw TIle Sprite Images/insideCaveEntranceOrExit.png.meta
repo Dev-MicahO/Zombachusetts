@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 5f694b21518b60f4a9df36a1857f1c39
+guid: ac26f29f49b56f14687f128808742ac6
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -8395914958387800481
-    second: BigBamIcon_0
+      213: 5866251980999433318
+    second: insideCaveEntranceOrExit_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,7 +100,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: BigBamIcon_0
+      name: insideCaveEntranceOrExit_0
       rect:
         serializedVersion: 2
         x: 0
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: f5618ec24d7bb7b80800000000000000
-      internalID: -8395914958387800481
+      spriteID: 66c1762981d196150800000000000000
+      internalID: 5866251980999433318
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      BigBamIcon_0: -8395914958387800481
+      insideCaveEntranceOrExit_0: 5866251980999433318
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

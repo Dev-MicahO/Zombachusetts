@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 5f694b21518b60f4a9df36a1857f1c39
+guid: 095d92542a62293489c10af02e94602b
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -8395914958387800481
-    second: BigBamIcon_0
+      213: -2274836018265071722
+    second: oldMan_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,7 +100,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: BigBamIcon_0
+      name: oldMan_0
       rect:
         serializedVersion: 2
         x: 0
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: f5618ec24d7bb7b80800000000000000
-      internalID: -8395914958387800481
+      spriteID: 69fdb09a1b82e60e0800000000000000
+      internalID: -2274836018265071722
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      BigBamIcon_0: -8395914958387800481
+      oldMan_0: -2274836018265071722
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

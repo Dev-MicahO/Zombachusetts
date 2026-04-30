@@ -82,9 +82,10 @@ public class PlayerController : MonoBehaviour
     }
 
     private void Update()
-    {
+    {   
         if (!isMoving)
         {
+            
             Vector2 currentInput = controls.World.Movement.ReadValue<Vector2>();
 
             if (currentInput != Vector2.zero)
@@ -101,6 +102,18 @@ public class PlayerController : MonoBehaviour
         Vector3Int frontTile = groundTileMap.WorldToCell(positionInFrontOfPlayer);
 
         //Tiles Interaction method blah blah blah 
+        TileBase tile = collisionTilemap.GetTile(frontTile);
+
+        if(tile != null)
+        {
+            TileInteraction(tile, frontTile);
+        }
+
+    }
+
+    private void TileInteraction(TileBase tile, Vector3Int cell)
+    {
+        string tileName = tile.name;
     }
 
     private void Move(Vector2 direction) 

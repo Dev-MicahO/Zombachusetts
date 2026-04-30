@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 5f694b21518b60f4a9df36a1857f1c39
+guid: 2b4e64797524bb04c9fdffa3d4443a46
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -8395914958387800481
-    second: BigBamIcon_0
+      213: -982409504422436789
+    second: kevlarVest_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,7 +100,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: BigBamIcon_0
+      name: kevlarVest_0
       rect:
         serializedVersion: 2
         x: 0
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: f5618ec24d7bb7b80800000000000000
-      internalID: -8395914958387800481
+      spriteID: b40eee0c2c7cd52f0800000000000000
+      internalID: -982409504422436789
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      BigBamIcon_0: -8395914958387800481
+      kevlarVest_0: -982409504422436789
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
