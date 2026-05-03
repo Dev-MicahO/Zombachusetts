@@ -2588,8 +2588,8 @@ Transform:
   m_GameObject: {fileID: 463577390}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 2.75, y: 0.98, z: 0}
-  m_LocalScale: {x: 4, y: 4, z: 1}
+  m_LocalPosition: {x: 3.18, y: 0.98, z: 0}
+  m_LocalScale: {x: 0.25, y: 0.2, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 641285924}
@@ -2662,8 +2662,8 @@ SpriteRenderer:
   m_SortingLayer: 2
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
-  m_Color: {r: 1, g: 0.46787477, b: 0, a: 1}
+  m_Sprite: {fileID: -3062144921903356401, guid: cf7a5bef9278cfd44aa51f2d2080061e, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -2928,7 +2928,7 @@ Transform:
   m_GameObject: {fileID: 527544547}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -2.47, y: 0.98, z: 0}
+  m_LocalPosition: {x: -2.66, y: 0.98, z: 0}
   m_LocalScale: {x: 0.6731938, y: 0.6800041, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3135,6 +3135,15 @@ MonoBehaviour:
   randomEncounterXPReward: 25
   randomEncounterVictoryHeal: 20
   randomEncounterFleeHeal: 5
+  forestXPPerEnemy: 25
+  caveXPPerEnemy: 50
+  cityXPPerEnemy: 90
+  forestEnemyHealthMultiplier: 1
+  caveEnemyHealthMultiplier: 1.5
+  cityEnemyHealthMultiplier: 2
+  forestEnemyDamageMultiplier: 1
+  caveEnemyDamageMultiplier: 1.5
+  cityEnemyDamageMultiplier: 2
   fleeSuccessChance: 0.7
   bleedDamage: 5
   bleedChancePercent: 30
@@ -4373,8 +4382,8 @@ Transform:
   m_GameObject: {fileID: 814911904}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.17, y: 0.98, z: 0}
-  m_LocalScale: {x: 4, y: 4, z: 1}
+  m_LocalPosition: {x: 0.17, y: 1.15, z: 0}
+  m_LocalScale: {x: 0.25, y: 0.25, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2119487931}
@@ -4447,8 +4456,8 @@ SpriteRenderer:
   m_SortingLayer: 2
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
-  m_Color: {r: 0, g: 1, b: 0.10920811, a: 1}
+  m_Sprite: {fileID: 397637362090497469, guid: 0bf45b0c767154e4a84c8f5f35b149c6, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
