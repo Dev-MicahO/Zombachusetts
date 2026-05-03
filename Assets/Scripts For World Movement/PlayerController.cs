@@ -68,7 +68,12 @@ public class PlayerController : MonoBehaviour
         GameSession.Instance.returnPlayerPosition = transform.position;
         GameSession.Instance.hasReturnPosition = true;
 
-        SceneChanger.Instance.LoadScene("Battlescene");
+        // Send player to loading screen first, then Loading scene sends them to battle.
+        GameSession.Instance.loadingTargetScene = "Battlescene";
+        GameSession.Instance.loadingReturnToPreviousScene = false;
+        GameSession.Instance.loadingScreenDuration = 0.25f;
+
+        SceneChanger.Instance.LoadScene("Loading");
     }
 
     private void Move(Vector2 direction) 

@@ -29,9 +29,12 @@ public class BattleManager : MonoBehaviour
     public Unit zombie3Unit;
 
     public Unit bossUnit;
+    public Unit scriptedBoss1Unit;
+    public Unit scriptedBoss2Unit;
     public Unit wifeUnit;
     public Unit partyMember2Unit;
     public Unit partyMember3Unit;
+
     
     // Enemey Slots for mutli-enemy fights
     [Header("Enemy Slots")]
@@ -130,6 +133,8 @@ public class BattleManager : MonoBehaviour
     public GameObject zombie2Object;
     public GameObject zombie3Object;
     public GameObject bossObject;
+    public GameObject scriptedBoss1Object;
+    public GameObject scriptedBoss2Object;
     public GameObject wifeObject;
     public GameObject partyMember2Object;
     public GameObject partyMember3Object;
@@ -287,6 +292,7 @@ public class BattleManager : MonoBehaviour
     // Random Encounter
     private bool isRandomEncounterBattle = false;
     private int currentRandomEncounterEnemyCount = 1;
+    private bool isScriptedBossFight = false;
 
     [Header("Random Encounter Enemy Visuals")]
     public EnemyVisualData[] forestEnemyVisuals;
@@ -363,8 +369,9 @@ public class BattleManager : MonoBehaviour
     public int bleedChancePercent = 30;
     public int bleedDuration = 2;
 
-    private bool enemyStunned = false;
     private bool enemyParalyzed = false;
+    private List<Unit> stunnedEnemies = new List<Unit>();
+    private List<Unit> stunResistantEnemies = new List<Unit>();
     private int enemyParalyzedTurnsRemaining = 0;
     private bool enemyBlinded = false;
     private int enemyBlindedTurnsRemaining = 0;
@@ -438,6 +445,13 @@ public class BattleManager : MonoBehaviour
         zombie2Object.SetActive(false);
         zombie3Object.SetActive(false);
         bossObject.SetActive(false);
+
+        // Hide scripted bosses until needed
+        if (scriptedBoss1Object != null)
+            scriptedBoss1Object.SetActive(false);
+
+        if (scriptedBoss2Object != null)
+            scriptedBoss2Object.SetActive(false);
         // Wife is visible during the first phase as a companion, then becomes the boss in the second phase.
         wifeObject.SetActive(true);
         wifeUIObject.SetActive(true);
@@ -931,11 +945,36 @@ public class BattleManager : MonoBehaviour
         zombie2Object.SetActive(true);
 
         enemyUnit = zombie2Unit;
+        ClearAllEnemyStunData();
         zombie2Spawned = true;
 
         RefreshBattleUIImmediate();
 
         SetBattleText(enemyUnit.unitName + " enters the battle!");
+        yield return new WaitForSeconds(1.5f);
+
+        StartNextAllyPhase();
+    }
+
+    // Will Spawn Zombie Clint
+    IEnumerator StartScriptedBoss2Fight()
+    {
+        state = BattleState.BUSY;
+        SetActionButtonsInteractable(false);
+
+        SetBattleText(scriptedBoss1Unit.unitName + " was defeated!");
+        yield return new WaitForSeconds(1.5f);
+
+        scriptedBoss1Object.SetActive(false);
+        scriptedBoss2Object.SetActive(true);
+
+        enemyUnit = scriptedBoss2Unit;
+        ClearAllEnemyStunData();
+        scriptedBoss2Unit.currentHealth = scriptedBoss2Unit.maxHealth;
+
+        RefreshBattleUIImmediate();
+
+        SetBattleText(scriptedBoss2Unit.unitName + " enters the battle!");
         yield return new WaitForSeconds(1.5f);
 
         StartNextAllyPhase();
@@ -961,6 +1000,12 @@ public class BattleManager : MonoBehaviour
         zombie3Object.SetActive(false);
         wifeObject.SetActive(false);
         wifeUIObject.SetActive(false);
+        // Safety check remove scripted bosses
+        if (scriptedBoss1Object != null)
+            scriptedBoss1Object.SetActive(false);
+
+        if (scriptedBoss2Object != null)
+            scriptedBoss2Object.SetActive(false);
 
         // Show dialogue
         yield return StartCoroutine(ShowTransitionDialogue(wifeUnit.unitName + " doesn't look well...", 2.5f));
@@ -982,7 +1027,7 @@ public class BattleManager : MonoBehaviour
 
         bossMoveIndex = 0;
         bossDefenseLowered = false;
-        enemyStunned = false;
+        ClearAllEnemyStunData();
 
         RefreshBattleUIImmediate();
        
@@ -1027,7 +1072,7 @@ public class BattleManager : MonoBehaviour
 
         bossMoveIndex = 0;
         bossDefenseLowered = false;
-        enemyStunned = false;
+        ClearAllEnemyStunData();
 
         RefreshBattleUIImmediate();
 
@@ -1044,7 +1089,135 @@ public class BattleManager : MonoBehaviour
         StartNextAllyPhase();
         yield break;
     }
-    
+
+    IEnumerator PlayFinalBossTransition()
+    {
+        isInCutscene = true;
+        skipCutsceneRequested = false;
+        skipHint.SetActive(true);
+
+        state = BattleState.BUSY;
+        SetActionButtonsInteractable(false);
+
+        // Fade to black
+        yield return StartCoroutine(FadeOverlay(1f, 1f));
+        if (skipCutsceneRequested) goto SKIP;
+
+        // Hide final fight phase 2 boss
+        if (scriptedBoss1Object != null)
+            scriptedBoss1Object.SetActive(false);
+
+        if (scriptedBoss2Object != null)
+            scriptedBoss2Object.SetActive(false);
+
+        zombieObject.SetActive(false);
+        zombie2Object.SetActive(false);
+        zombie3Object.SetActive(false);
+
+        wifeObject.SetActive(false);
+        wifeUIObject.SetActive(false);
+
+        // TEMP final fight dialogue.
+        yield return StartCoroutine(ShowTransitionDialogue("You hear heavy footsteps approaching.", 2.5f));
+        if (skipCutsceneRequested) goto SKIP;
+
+        yield return StartCoroutine(ShowTransitionDialogue("As they approach, \nyou realize the true extent of the threat.", 2.5f));
+        if (skipCutsceneRequested) goto SKIP;
+
+        yield return StartCoroutine(ShowTransitionDialogue("Duncan sheds a tear. \nas he sees the remnants \nof the one he once loved.", 2.5f));
+        if (skipCutsceneRequested) goto SKIP;
+
+        yield return StartCoroutine(ShowTransitionDialogue(wifeUnit.unitName + " now stands before you.", 2.5f));
+        if (skipCutsceneRequested) goto SKIP;
+        
+        yield return StartCoroutine(ShowTransitionDialogue("For the final time..", 2.5f));
+        if (skipCutsceneRequested) goto SKIP;
+
+        dialogueText.text = "";
+
+        // Set up wife boss phase
+        bossObject.SetActive(true);
+        bossFightStarted = true;
+        enemyUnit = bossUnit;
+
+        bossUnit.currentHealth = bossUnit.maxHealth;
+
+        bossMoveIndex = 0;
+        bossDefenseLowered = false;
+        ClearAllEnemyStunData();
+        enemyParalyzed = false;
+        enemyBlinded = false;
+
+        RefreshBattleUIImmediate();
+
+        yield return StartCoroutine(FadeOverlay(0f, 1f));
+
+        dialogueText.gameObject.SetActive(false);
+
+        SetBattleText(enemyUnit.unitName + " enters the final battle!");
+        yield return new WaitForSeconds(1.5f);
+
+        isInCutscene = false;
+        skipCutsceneRequested = false;
+        skipHint.SetActive(false);
+
+        StartNextAllyPhase();
+        yield break;
+
+    SKIP:
+
+        Debug.Log("Final boss transition skipped");
+
+        if (activeTypingCoroutine != null)
+        {
+            StopCoroutine(activeTypingCoroutine);
+            activeTypingCoroutine = null;
+        }
+
+        dialogueText.text = "";
+        dialogueText.gameObject.SetActive(false);
+        skipHint.SetActive(false);
+
+        if (scriptedBoss1Object != null)
+            scriptedBoss1Object.SetActive(false);
+
+        if (scriptedBoss2Object != null)
+            scriptedBoss2Object.SetActive(false);
+
+        zombieObject.SetActive(false);
+        zombie2Object.SetActive(false);
+        zombie3Object.SetActive(false);
+
+        wifeObject.SetActive(false);
+        wifeUIObject.SetActive(false);
+
+        bossObject.SetActive(true);
+        bossFightStarted = true;
+        enemyUnit = bossUnit;
+
+        bossUnit.currentHealth = bossUnit.maxHealth;
+
+        bossMoveIndex = 0;
+        bossDefenseLowered = false;
+        ClearAllEnemyStunData();
+        enemyParalyzed = false;
+        enemyBlinded = false;
+
+        RefreshBattleUIImmediate();
+
+        yield return StartCoroutine(QuickCutsceneSkipFlash());
+
+        isInCutscene = false;
+        skipCutsceneRequested = false;
+        skipHint.SetActive(false);
+
+        SetBattleText(enemyUnit.unitName + " enters the final battle!");
+        yield return new WaitForSeconds(1.5f);
+
+        StartNextAllyPhase();
+        yield break;
+    }
+
     // Starts the second phase of battle by swapping from zombie to boss (This is handled by PlayBossTransition Now)
     IEnumerator StartBossFight()
     {
@@ -1317,6 +1490,8 @@ public class BattleManager : MonoBehaviour
             ApplyPersistentPlayerStats();
         }
 
+        ClearAllEnemyStunData();
+
         // Reset SP
         playerCurrentSP = playerMaxSP;
         playerTargetSPFill = 1f;
@@ -1329,8 +1504,68 @@ public class BattleManager : MonoBehaviour
         ShowActionPanel();
         SetActionButtonsInteractable(true);
     }
+
+    void SetupScriptedBossFight()
+    {
+        isScriptedBossFight = true;
+        isRandomEncounterBattle = false;
+        bossFightStarted = false;
+        zombie2Spawned = false;
+
+        if (GameSession.Instance != null)
+        {
+            GameSession.Instance.isRandomEncounter = false;
+        }
+
+        // Hide normal encounter/tutorial enemies
+        zombieObject.SetActive(false);
+        zombie2Object.SetActive(false);
+        zombie3Object.SetActive(false);
+        bossObject.SetActive(false);
+
+        // Hide wife as companion for this fight
+        wifeObject.SetActive(false);
+        wifeUIObject.SetActive(false);
+
+        // Hide random encounter companions for now
+        partyMember2Object.SetActive(false);
+        partyMember3Object.SetActive(false);
+
+        // Show scripted boss 1
+        scriptedBoss1Object.SetActive(true);
+        scriptedBoss2Object.SetActive(false);
+
+        scriptedBoss1Unit.currentHealth = scriptedBoss1Unit.maxHealth;
+        scriptedBoss2Unit.currentHealth = scriptedBoss2Unit.maxHealth;
+        bossUnit.currentHealth = bossUnit.maxHealth;
+
+        enemyUnit = scriptedBoss1Unit;
+
+        transitionOverlay.alpha = 0f;
+        transitionOverlay.blocksRaycasts = false;
+        dialogueText.gameObject.SetActive(false);
+        activeTypingCoroutine = null;
+        skipHint.SetActive(false);
+
+        if (GameSession.Instance != null)
+        {
+            GameSession.Instance.InitializePlayerStatsFromUnit(playerUnit);
+            ApplyPersistentPlayerStats();
+        }
+
+        playerCurrentSP = playerMaxSP;
+        playerTargetSPFill = 1f;
+
+        RefreshBattleUIImmediate();
+
+        SetBattleText(scriptedBoss1Unit.unitName + " stands in your way!");
+        ShowActionPanel();
+
+        state = BattleState.PLAYERTURN;
+        SetActionButtonsInteractable(true);
+    }
     #endregion
-    
+
     #region Combat Methods and Helpers
     // Struct to hold boss attack data for cleaner code when determining boss attacks (Refactored from multiple variables and if statements in EnemyTurn)
     private struct BossAttackData
@@ -1982,18 +2217,72 @@ public class BattleManager : MonoBehaviour
     }
 
     // Handles skipping the enemy turn when stunned -> Immediately returns control to the player
-    IEnumerator HandleEnemyStunSkip()
+    IEnumerator HandleEnemyStunSkip(Unit stunnedEnemy)
     {
-        enemyStunned = false;
-        SetBattleText(enemyUnit.unitName + " is stunned and cannot move!");
+        RemoveStunFromEnemy(stunnedEnemy);
+
+        SetBattleText(stunnedEnemy.unitName + " is stunned and cannot move!");
         yield return new WaitForSeconds(1f);
     }
+    // Overhauled Stun Mechanics
+    bool IsEnemyStunned(Unit enemy)
+    {
+        return enemy != null && stunnedEnemies.Contains(enemy);
+    }
 
-       /* Handles what happens after the player attacks:
-    - If enemies die → transition to boss or win
-    - Otherwise → proceed to enemy turn
-    More refactoring to clean up code overall
-    */
+    void ApplyStunToEnemy(Unit enemy)
+    {
+        if (enemy == null)
+            return;
+
+        if (!stunnedEnemies.Contains(enemy))
+            stunnedEnemies.Add(enemy);
+
+        if (!stunResistantEnemies.Contains(enemy))
+            stunResistantEnemies.Add(enemy);
+    }
+
+    void RemoveStunFromEnemy(Unit enemy)
+    {
+        if (enemy == null)
+            return;
+
+        if (stunnedEnemies.Contains(enemy))
+            stunnedEnemies.Remove(enemy);
+    }
+
+    bool EnemyResistsStun(Unit enemy)
+    {
+        return enemy != null && stunResistantEnemies.Contains(enemy);
+    }
+
+    void RemoveStunResistance(Unit enemy)
+    {
+        if (enemy == null)
+            return;
+
+        if (stunResistantEnemies.Contains(enemy))
+            stunResistantEnemies.Remove(enemy);
+    }
+
+    void ClearExpiredStunResistanceAfterPlayerAction()
+    {
+        // After the player chooses any non-Shoulder-Bash action,
+        // enemies stop resisting stun on the next player turn.
+        stunResistantEnemies.Clear();
+    }
+
+    void ClearAllEnemyStunData()
+    {
+        stunnedEnemies.Clear();
+        stunResistantEnemies.Clear();
+    }
+
+    /* Handles what happens after the player attacks:
+ - If enemies die → transition to boss or win
+ - Otherwise → proceed to enemy turn
+ More refactoring to clean up code overall
+ */
     IEnumerator ResolveEnemyDefeatOrContinue()
     {
         yield return new WaitForSeconds(1.5f);
@@ -2002,6 +2291,9 @@ public class BattleManager : MonoBehaviour
 
         if (enemyUnit.IsDead())
         {
+            if (TryHandleScriptedBossDefeat())
+                yield break;
+                
             // RANDOM ENCOUNTER END
             if (isRandomEncounterBattle)
             {
@@ -2011,6 +2303,26 @@ public class BattleManager : MonoBehaviour
                     state = BattleState.WON;
                     StartCoroutine(ReturnToOverworldAfterBattle());
                     yield break;
+                }
+                // SCRIPTED BOSS FIGHT PHASES
+                if (isScriptedBossFight)
+                {
+                    if (enemyUnit == scriptedBoss1Unit)
+                    {
+                        StartCoroutine(StartScriptedBoss2Fight());
+                        yield break;
+                    }
+                    else if (enemyUnit == scriptedBoss2Unit)
+                    {
+                        StartCoroutine(PlayBossTransition());
+                        yield break;
+                    }
+                    else if (enemyUnit == bossUnit)
+                    {
+                        state = BattleState.WON;
+                        StartCoroutine(EndBattle());
+                        yield break;
+                    }
                 }
                 else
                 {
@@ -2147,11 +2459,39 @@ public class BattleManager : MonoBehaviour
             PlayerTurn();
         }
     }
+
+    // Consolidated scripted boss defeat handling for PC & Party Members
+    bool TryHandleScriptedBossDefeat()
+    {
+        if (!isScriptedBossFight)
+            return false;
+
+        if (enemyUnit == scriptedBoss1Unit)
+        {
+            StartCoroutine(StartScriptedBoss2Fight());
+            return true;
+        }
+
+        if (enemyUnit == scriptedBoss2Unit)
+        {
+            StartCoroutine(PlayFinalBossTransition());
+            return true;
+        }
+
+        if (enemyUnit == bossUnit)
+        {
+            state = BattleState.WON;
+            StartCoroutine(EndBattle());
+            return true;
+        }
+
+        return false;
+    }
     #endregion
 
     #region Targeting and Button Handlers
     // Target Panel Logic
-     void OpenTargetPanel(List<Unit> targets, TargetSelectionType selectionType, PendingTargetAction actionType)
+    void OpenTargetPanel(List<Unit> targets, TargetSelectionType selectionType, PendingTargetAction actionType)
     {
         currentSelectableTargets = targets;
         currentTargetSelectionType = selectionType;
@@ -2473,7 +2813,7 @@ public class BattleManager : MonoBehaviour
     */
     bool IsPartyDefeated()
     {
-        if (isRandomEncounterBattle ||bossFightStarted)
+        if (isRandomEncounterBattle ||bossFightStarted || isScriptedBossFight)
             return playerUnit.IsDead();
 
         return playerUnit.IsDead() && wifeUnit.IsDead();
@@ -2570,6 +2910,12 @@ public class BattleManager : MonoBehaviour
         if (zombie3Object.activeSelf && !zombie3Unit.IsDead())
             enemies.Add(zombie3Unit);
 
+        if (scriptedBoss1Object != null && scriptedBoss1Object.activeSelf && !scriptedBoss1Unit.IsDead())
+            enemies.Add(scriptedBoss1Unit);
+
+        if (scriptedBoss2Object != null && scriptedBoss2Object.activeSelf && !scriptedBoss2Unit.IsDead())
+            enemies.Add(scriptedBoss2Unit);
+
         if (bossObject.activeSelf && !bossUnit.IsDead())
             enemies.Add(bossUnit);
 
@@ -2592,6 +2938,12 @@ public class BattleManager : MonoBehaviour
 
         if (zombie3Unit.IsDead() && zombie3Object.activeSelf)
             zombie3Object.SetActive(false);
+        
+        if (scriptedBoss1Unit != null && scriptedBoss1Unit.IsDead() && scriptedBoss1Object.activeSelf)
+            scriptedBoss1Object.SetActive(false);
+
+        if (scriptedBoss2Unit != null && scriptedBoss2Unit.IsDead() && scriptedBoss2Object.activeSelf)
+            scriptedBoss2Object.SetActive(false);
 
         UpdateHPText();
     }
@@ -2636,6 +2988,7 @@ public class BattleManager : MonoBehaviour
     IEnumerator PlayerAttack(Unit target)
     {
         BeginPlayerAction(true);
+        ClearExpiredStunResistanceAfterPlayerAction();
         yield return new WaitForSeconds(0.5f);
 
         enemyUnit = target;
@@ -2691,6 +3044,7 @@ public class BattleManager : MonoBehaviour
     IEnumerator PlayerDefend()
     {
         BeginPlayerAction(false);
+        ClearExpiredStunResistanceAfterPlayerAction();
 
         playerUnit.isDefending = true;
         SetPlayerBlockingSprite();
@@ -2720,6 +3074,7 @@ public class BattleManager : MonoBehaviour
     IEnumerator PlayerFlee()
     {
         BeginPlayerAction(false);
+        ClearExpiredStunResistanceAfterPlayerAction();
 
         float fleeRoll = Random.value;
 
@@ -2774,9 +3129,29 @@ public class BattleManager : MonoBehaviour
         damage = ApplyCriticalHit(damage, GetPlayerCritChance(), GetPlayerCritMultiplier(), out isCritical);
 
         DamageEnemy(target, damage, isCritical);
-        enemyStunned = true;
 
-        string attackMessage = GetShoulderBashMessage(damage, exploitedOpening, rageBoosted);
+        bool stunApplied = false;
+
+        if (EnemyResistsStun(target))
+        {
+            RemoveStunResistance(target);
+        }
+        else
+        {
+            ApplyStunToEnemy(target);
+            stunApplied = true;
+        }
+
+        string attackMessage;
+
+        if (stunApplied)
+        {
+            attackMessage = GetShoulderBashMessage(damage, exploitedOpening, rageBoosted);
+        }
+        else
+        {
+            attackMessage = "Shoulder Bash deals " + damage + " damage, but " + target.unitName + " resists the stun!";
+        }
 
         if (isCritical)
         {
@@ -2808,6 +3183,7 @@ public class BattleManager : MonoBehaviour
         playerUsedSkillLastTurn = true;
 
         BeginPlayerAction();
+        ClearExpiredStunResistanceAfterPlayerAction();
 
         SetBattleText("You use All Out Attack!");
         yield return new WaitForSeconds(0.5f);
@@ -2855,6 +3231,7 @@ public class BattleManager : MonoBehaviour
             yield break;
         playerUsedSkillLastTurn = true;
         BeginPlayerAction();
+        ClearExpiredStunResistanceAfterPlayerAction();
 
         playerRageActive = true;
         rageTurnsRemaining = warriorRageDurationTurns;
@@ -2896,6 +3273,7 @@ public class BattleManager : MonoBehaviour
             yield break;
         playerUsedSkillLastTurn = true;
         BeginPlayerAction();
+        ClearExpiredStunResistanceAfterPlayerAction();
 
         enemyUnit = target;
 
@@ -2975,6 +3353,7 @@ public class BattleManager : MonoBehaviour
             yield break;
         playerUsedSkillLastTurn = true;
         BeginPlayerAction();
+        ClearExpiredStunResistanceAfterPlayerAction();
 
         SetBattleText("You summon Grasp of the Abyss!");
 	
@@ -3029,6 +3408,7 @@ public class BattleManager : MonoBehaviour
             yield break;
         playerUsedSkillLastTurn = true;
         BeginPlayerAction();
+        ClearExpiredStunResistanceAfterPlayerAction();
 
         int selfDamage = Mathf.CeilToInt(playerUnit.maxHealth * (mageSkill3SelfDamagePercent / 100f));
         playerUnit.TakeDamage(selfDamage);
@@ -3102,6 +3482,8 @@ public class BattleManager : MonoBehaviour
             yield break;
         playerUsedSkillLastTurn = true;
         BeginPlayerAction();
+        ClearExpiredStunResistanceAfterPlayerAction();
+
 
         int baseHeal = playerUnit.GetDamage() / 2;
         int healAmount = baseHeal + Random.Range(doctorSkill1MinHeal, doctorSkill1MaxHeal + 1);
@@ -3142,6 +3524,8 @@ public class BattleManager : MonoBehaviour
             yield break;
         playerUsedSkillLastTurn = true;
         BeginPlayerAction();
+        ClearExpiredStunResistanceAfterPlayerAction();
+
 
         int baseHeal = playerUnit.GetDamage() / 2;
         int healAmount = baseHeal + Random.Range(doctorSkill2MinHeal, doctorSkill2MaxHeal + 1);
@@ -3191,6 +3575,8 @@ public class BattleManager : MonoBehaviour
             yield break;
         playerUsedSkillLastTurn = true;
         BeginPlayerAction();
+        ClearExpiredStunResistanceAfterPlayerAction();
+
 
         HGActive = true;
         doctorHGHealPerTurn = (playerUnit.GetDamage() / 3) + doctorSkill3BaseHeal;
@@ -3226,6 +3612,8 @@ public class BattleManager : MonoBehaviour
             yield break;
         playerUsedSkillLastTurn = true;
         BeginPlayerAction();
+        ClearExpiredStunResistanceAfterPlayerAction();
+
 
         enemyUnit = target;
 
@@ -3268,6 +3656,7 @@ public class BattleManager : MonoBehaviour
             yield break;
         playerUsedSkillLastTurn = true;
         BeginPlayerAction();
+        ClearExpiredStunResistanceAfterPlayerAction();
 
         thiefStealthed = true;
         stealthTurnsRemaining = thiefStealthDurationTurns;
@@ -3300,6 +3689,7 @@ public class BattleManager : MonoBehaviour
             yield break;
         playerUsedSkillLastTurn = true;
         BeginPlayerAction();
+        ClearExpiredStunResistanceAfterPlayerAction();
 
         enemyUnit = target;
 
@@ -3422,6 +3812,9 @@ public class BattleManager : MonoBehaviour
 
             if (enemyUnit.IsDead())
             {
+                if (TryHandleScriptedBossDefeat())
+                    yield break;
+
                 if (enemyUnit == zombieUnit && !zombie2Spawned)
                 {
                     StartCoroutine(StartSecondZombieFight());
@@ -3471,9 +3864,9 @@ public class BattleManager : MonoBehaviour
             yield break;
         }
 
-        if (enemyStunned)
+        if (IsEnemyStunned(enemyUnit))
         {
-            yield return StartCoroutine(HandleEnemyStunSkip());
+            yield return StartCoroutine(HandleEnemyStunSkip(enemyUnit));
             yield break;
         }
 
@@ -3854,6 +4247,25 @@ public class BattleManager : MonoBehaviour
             SetBattleText("DEBUG: 50 XP applied");
         }
 
+        // DEBUG: Start scripted boss fight / final boss fight testing
+        if (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame)
+        {
+            Debug.Log("DEBUG: Starting scripted boss fight");
+
+            StopAllCoroutines();
+
+            isInCutscene = false;
+            skipCutsceneRequested = false;
+            // Show party members in random encounter for debug purposes
+            if (GameSession.Instance != null)
+            {
+                GameSession.Instance.hasPartyMember2 = true;
+                GameSession.Instance.hasPartyMember3 = true;
+            }
+
+            SetupScriptedBossFight();
+        }
+
         playerHPBarFill.fillAmount = Mathf.Lerp(playerHPBarFill.fillAmount, playerTargetHPFill, Time.deltaTime * hpBarSpeed);
         enemyHPBarFill.fillAmount = Mathf.Lerp(enemyHPBarFill.fillAmount, enemyTargetHPFill, Time.deltaTime * hpBarSpeed);
         if (enemy2HPBarFill != null && enemy2HPBarFill.gameObject.activeSelf)
@@ -3911,7 +4323,14 @@ public class BattleManager : MonoBehaviour
         }
         else
         {
-            SceneChanger.Instance.PreviousScene();
+            if (GameSession.Instance != null)
+            {
+                GameSession.Instance.loadingReturnToPreviousScene = true;
+                GameSession.Instance.loadingTargetScene = "";
+                GameSession.Instance.loadingScreenDuration = 1.0f;
+            }
+
+            UnityEngine.SceneManagement.SceneManager.LoadScene("Loading");
         }
     }
 
@@ -3952,8 +4371,8 @@ public class BattleManager : MonoBehaviour
         {
             SetBattleText("You won the battle!");
 
-            // Tutorial battle is completed after winning the story/tutorial fight
-            if (!isRandomEncounterBattle && GameSession.Instance != null)
+            // Only the tutorial/story intro fight should set tutorialBattleCompleted.
+            if (!isRandomEncounterBattle && !isScriptedBossFight && GameSession.Instance != null)
             {
                 GameSession.Instance.tutorialBattleCompleted = true;
                 GameSession.Instance.isRandomEncounter = false;
@@ -3980,7 +4399,14 @@ public class BattleManager : MonoBehaviour
 
         yield return new WaitForSeconds(2f);
 
-        SceneChanger.Instance.LoadScene("PlayerHouse");
+        if (GameSession.Instance != null)
+        {
+            GameSession.Instance.loadingTargetScene = "PlayerHouse";
+            GameSession.Instance.loadingReturnToPreviousScene = false;
+            GameSession.Instance.loadingScreenDuration = 1.0f;
+        }
+
+        UnityEngine.SceneManagement.SceneManager.LoadScene("Loading");
     }
     #endregion
 }

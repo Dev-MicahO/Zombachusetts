@@ -5,6 +5,11 @@ public class GameSession : MonoBehaviour
 {
     public static GameSession Instance;
 
+    [Header("Loading Screen")]
+    public string loadingTargetScene = "";
+    public bool loadingReturnToPreviousScene = false;
+    public float loadingScreenDuration = 1.0f;
+
     [Header("Battle State")]
     public bool isRandomEncounter = false;
     public bool tutorialBattleCompleted = false;
