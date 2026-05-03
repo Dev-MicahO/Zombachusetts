@@ -1,9 +1,17 @@
 using Unity.VisualScripting;
 using UnityEngine;
+using System.Collections.Generic;
 
 public class GameSession : MonoBehaviour
-{
+{   
     public static GameSession Instance;
+
+    public HashSet<string> destroyedObjects = new HashSet<string>();
+    
+    public bool GoldenBeagle = false;
+    public bool SuspicousBrain = false;
+    public bool RubyDagger = false;
+    public bool KevlarVest = false;
 
     [Header("Loading Screen")]
     public string loadingTargetScene = "";
@@ -12,6 +20,8 @@ public class GameSession : MonoBehaviour
 
     [Header("Battle State")]
     public bool isRandomEncounter = false;
+    public bool isFinalBossFight = false;
+    public bool FinalBossDefeated = false;
     public bool tutorialBattleCompleted = false;
 
     [Header("Return To Overworld")]
@@ -28,15 +38,15 @@ public class GameSession : MonoBehaviour
     private int[] xpRequiredPerLevel =
     {
     0,    // level 1
-    25,   // level 2
-    60,   // level 3
-    110,  // level 4
-    175,  // level 5
-    260,  // level 6
-    370,  // level 7
-    510,  // level 8
-    685,  // level 9
-    900   // level 10
+    50,   // level 2
+    75,   // level 3
+    150,  // level 4
+    300,  // level 5
+    650,  // level 6
+    1200,  // level 7
+    1800,  // level 8
+    2400,  // level 9
+    3000   // level 10
     };
     
     public enum EncounterArea
@@ -217,5 +227,78 @@ public class GameSession : MonoBehaviour
         playerCurrentHP = playerMaxHP;
 
         Debug.Log("Level up! Player is now level " + playerLevel);
+    }
+
+    public void setItemTrue(string itemName)
+    {
+        Debug.Log("setItemTrue called with: " + itemName);
+        if(itemName == "Golden Beagle")
+        {
+            GoldenBeagle = true;
+            Debug.Log("setItemTrue called with: " + itemName + " | Golden Beagle is: " + GoldenBeagle);
+        }
+        else if(itemName == "Suspicous Brain")
+        {
+            SuspicousBrain = true;
+            Debug.Log("setItemTrue called with: " + itemName + " | Suspicous Brain is: " + SuspicousBrain);
+
+        }
+        else if(itemName == "Ruby Dagger")
+        {
+            RubyDagger = true;
+            playerMinDamage += 5;
+            playerMaxDamage += 5;
+            Debug.Log("setItemTrue called with: " + itemName + " | Ruby Dagger is: " + RubyDagger);
+
+        }
+        else if(itemName == "Kevlar Vest")
+        {
+            KevlarVest = true;
+            playerMaxHP = playerMaxHP + 20;
+            Debug.Log("setItemTrue called with: " + itemName + " | Kevlar Vest is: " + KevlarVest);
+
+        }
+    }
+
+    public void setPartyMemberTrue(string partyMember)
+    {
+        Debug.Log("Party Member equals" + partyMember);
+        if(partyMember == "Big Bam")
+        {
+            hasPartyMember2 = true;
+        }
+        else if(partyMember == "Old Man")
+        {
+            hasPartyMember3 = true;
+        }
+
+    }
+
+    public bool getItemStatus(string itemName)
+    {
+        Debug.Log("getItemStatus called with: " + itemName);
+        if(itemName == "Golden Beagle")
+        {
+            Debug.Log("getItemStatus called with: " + itemName + " | Golden Beagle is: " + GoldenBeagle);
+            return GoldenBeagle;
+        }
+        else if(itemName == "Suspicous Brain")
+        {
+            Debug.Log("getItemStatus called with: " + itemName + " | Suspicous Brain is: " + SuspicousBrain);
+            return SuspicousBrain;
+        }
+        else if(itemName == "Ruby Dagger")
+        {
+            Debug.Log("getItemStatus called with: " + itemName + " | Ruby Dagger is: " + RubyDagger);
+            return RubyDagger;
+        }
+        else if(itemName == "Kevlar Vest")
+        {
+            Debug.Log("getItemStatus called with: " + itemName + " | Kevlar Vest is: " + KevlarVest);
+            return KevlarVest;
+        }
+        
+        return false;
+        
     }
 }

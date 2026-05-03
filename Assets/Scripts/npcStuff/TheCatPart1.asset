@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6b4c8011419bc24da7c059cb53a5836, type: 3}
+  m_Name: TheCatPart1
+  m_EditorClassIdentifier: Assembly-CSharp::NPCDialogue
+  npcName: The Cat
+  npcPortrait: {fileID: 8523333546307193184, guid: 68403c56aeb860945bf16aa9714de1ba, type: 3}
+  dialogueLines:
+  - Meow
+  - Meow
+  - Meow
+  - Meow
+  - Meow
+  - Meow
+  - Meow
+  - Should you really be wasting time with a simple cat Duncan
+  - Honestly Im a little disappointed I had such high hopes for you
+  autoProgressLines: 0101010101010101
+  autoProgressDelay: 2.5
+  typingSpeed: 0.05
+  voiceSound: {fileID: 0}
+  voicePitch: 1
+  destroydialogueLines:
+  - 
+  destroyAutoProgressLines: 01
+  npcItem: 
