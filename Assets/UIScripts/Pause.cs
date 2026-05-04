@@ -48,8 +48,6 @@ public class Pause : MonoBehaviour
         pauseMenu.SetActive(isPaused);
         Time.timeScale = isPaused ? 0f : 1f;
 
-        Cursor.lockState = isPaused ? CursorLockMode.None : CursorLockMode.Locked;
-        Cursor.visible = isPaused;
     }
 
     // toggles the settings panel on
@@ -74,4 +72,27 @@ public class Pause : MonoBehaviour
         settingsMenu.SetActive(false);
         Time.timeScale = 1f;
     }
+
+      public void QuitToDesktop()
+    {
+        PlayerPrefs.Save();
+
+        Debug.Log("Game Saved!");
+
+        Application.Quit();
+        
+    }
+
+    // button code for the quit to title button in the pause menu 
+    public void QuitToMenu()
+    {
+        Time.timeScale = 1f;
+        PlayerPrefs.Save();
+
+        Debug.Log("Game Saved!");
+
+        SceneChanger.Instance.LoadScene("main menu");
+    }
+
+    
 }

@@ -27,6 +27,10 @@ public class GameSession : MonoBehaviour
     [Header("Return To Overworld")]
     public Vector3 returnPlayerPosition = Vector3.zero;
     public bool hasReturnPosition = false;
+    
+    [Header("Scene Tracking")]
+    public string currentOverworldScene = "PlayerHouse";
+    public string randomEncounterReturnScene = "";
 
     [Header("Player Class")]
     public PlayerClass selectedClass = PlayerClass.Warrior;

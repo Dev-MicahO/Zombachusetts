@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using UnityEngine.SceneManagement;
 
 
 public class PlayerController : MonoBehaviour
@@ -79,6 +80,12 @@ public class PlayerController : MonoBehaviour
         GameSession.Instance.returnPlayerPosition = transform.position;
         GameSession.Instance.hasReturnPosition = true;
 
+        // Save the exact overworld scene we came from.
+        // This fixes battle return after loading a save file.
+        string currentSceneName = SceneManager.GetActiveScene().name;
+        GameSession.Instance.randomEncounterReturnScene = currentSceneName;
+        GameSession.Instance.currentOverworldScene = currentSceneName;
+
         // Send player to loading screen first, then Loading scene sends them to battle.
         GameSession.Instance.loadingTargetScene = "Battlescene";
         GameSession.Instance.loadingReturnToPreviousScene = false;
@@ -86,6 +93,44 @@ public class PlayerController : MonoBehaviour
 
         SceneChanger.Instance.LoadScene("Loading");
     }
+    private void Update()
+    {   
+        
+        if (!isMoving)
+        {
+            
+            Vector2 currentInput = controls.World.Movement.ReadValue<Vector2>();
+
+            if (currentInput != Vector2.zero)
+            {
+                Vector2 direction = GetCardinalDirection(currentInput);
+                Move(direction);
+            }
+        }
+    }
+
+    private void Interact()
+    {
+        Debug.Log("E PRESSED");
+        Vector3 positionInFrontOfPlayer = transform.position + (Vector3)facingDirection;
+        //Vector3Int frontTile = groundTileMap.WorldToCell(positionInFrontOfPlayer);
+
+        Collider2D hit = Physics2D.OverlapPoint(positionInFrontOfPlayer);
+
+        if(hit != null)
+        {
+            IInteractable interactable = hit.GetComponent(typeof(IInteractable)) as IInteractable;
+
+            if(interactable != null && interactable.CanInteract())
+            {
+                interactable.Interact();
+                return;
+            }
+        }
+        
+
+    }
+
 
     private void Update()
     {   

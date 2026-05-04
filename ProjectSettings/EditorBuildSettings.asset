@@ -23,6 +23,21 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/EndingScene.unity
     guid: 8c9cfa26abfee488c85f1582747f6a02
+  - enabled: 1
+    path: Assets/Scenes/Loading.unity
+    guid: 425f9f93855b43246956c6e27e4c3fdb
+  - enabled: 1
+    path: Assets/Scenes/TheCity.unity
+    guid: 87273d261c832a04f97509da98043601
+  - enabled: 1
+    path: Assets/Scenes/TheSchool.unity
+    guid: aac634452f3bf0a4ba054dab2b287414
+  - enabled: 1
+    path: Assets/Scenes/game.unity
+    guid: fa30a1892578cde45910c880f6cf268a
+  - enabled: 1
+    path: Assets/Scenes/death.unity
+    guid: d78115a67c5419449b6a39b4490e7c75
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
   m_UseUCBPForAssetBundles: 0

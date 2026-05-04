@@ -11,26 +11,21 @@ public class LoadingScreenController : MonoBehaviour
 
     IEnumerator LoadAfterDelay()
     {
-        float delay = 1f;
+        float delay = 0.25f;
 
         if (GameSession.Instance != null)
             delay = GameSession.Instance.loadingScreenDuration;
 
         yield return new WaitForSeconds(delay);
 
-        if (GameSession.Instance != null && GameSession.Instance.loadingReturnToPreviousScene)
-        {
-            GameSession.Instance.loadingReturnToPreviousScene = false;
-            GameSession.Instance.loadingTargetScene = "";
-
-            SceneChanger.Instance.PreviousScene();
-            yield break;
-        }
-
         if (GameSession.Instance != null && !string.IsNullOrEmpty(GameSession.Instance.loadingTargetScene))
         {
             string targetScene = GameSession.Instance.loadingTargetScene;
+
+            Debug.Log("Loading screen sending player to: " + targetScene);
+
             GameSession.Instance.loadingTargetScene = "";
+            GameSession.Instance.loadingReturnToPreviousScene = false;
 
             SceneManager.LoadScene(targetScene);
             yield break;
