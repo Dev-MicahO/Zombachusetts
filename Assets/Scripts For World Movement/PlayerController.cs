@@ -170,7 +170,6 @@ public class PlayerController : MonoBehaviour
                 //chance of getting a encounter increases with every step
                 //a encounter is guaranteeded eventually
                 amountSinceLastFight = amountSinceLastFight + 0.01f;
-                Debug.Log("No fight this time");
             }
 
 
