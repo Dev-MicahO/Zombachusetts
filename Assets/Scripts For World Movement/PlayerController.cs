@@ -6,7 +6,16 @@ using UnityEngine.Tilemaps;
 
 public class PlayerController : MonoBehaviour
 {
+    private Vector2 facingDirection;
+
+    [SerializeField] private SpriteRenderer spriteRenderer;
+
+    [SerializeField] private Sprite facingUp;
+    [SerializeField] private Sprite facingDown;
+    [SerializeField] private Sprite facingLeft;
+    [SerializeField] private Sprite facingRight;
     
+    private Vector2 movingInput;
     private bool isMoving = false;
     [SerializeField] float moveSpeed = 5f;
     private Rigidbody2D rb;
@@ -31,10 +40,14 @@ public class PlayerController : MonoBehaviour
     }
 
     private void OnEnable()
-    {
-        controls.Enable();
-        rb = GetComponent<Rigidbody2D>();
-    }
+{
+    controls.Enable();
+    rb = GetComponent<Rigidbody2D>();
+
+    controls.World.Movement.performed += ctx => movingInput = ctx.ReadValue<Vector2>();
+    controls.World.Movement.canceled += ctx => movingInput = Vector2.zero;
+    controls.World.Interact.performed += ctx => Interact();
+}
 
     private void OnDisable()
     {
@@ -42,12 +55,10 @@ public class PlayerController : MonoBehaviour
     }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+  void Start()
     {
-        //we read in the vector value from the inputSystem
-        controls.World.Movement.performed += ctx => Move(ctx.ReadValue<Vector2>());
+        UpdateFacingDirection(Vector2.down);
     }
-
     private void TriggerRandomEncounter()
     {
         if (GameSession.Instance == null)
@@ -76,8 +87,49 @@ public class PlayerController : MonoBehaviour
         SceneChanger.Instance.LoadScene("Loading");
     }
 
+    private void Update()
+    {   
+        
+        if (!isMoving)
+        {
+            
+            Vector2 currentInput = controls.World.Movement.ReadValue<Vector2>();
+
+            if (currentInput != Vector2.zero)
+            {
+                Vector2 direction = GetCardinalDirection(currentInput);
+                Move(direction);
+            }
+        }
+    }
+
+    private void Interact()
+    {
+        Debug.Log("E PRESSED");
+        Vector3 positionInFrontOfPlayer = transform.position + (Vector3)facingDirection;
+        //Vector3Int frontTile = groundTileMap.WorldToCell(positionInFrontOfPlayer);
+
+        Collider2D hit = Physics2D.OverlapPoint(positionInFrontOfPlayer);
+
+        if(hit != null)
+        {
+            IInteractable interactable = hit.GetComponent(typeof(IInteractable)) as IInteractable;
+
+            if(interactable != null && interactable.CanInteract())
+            {
+                interactable.Interact();
+                return;
+            }
+        }
+        
+
+    }
+
+
     private void Move(Vector2 direction) 
     {
+        UpdateFacingDirection(direction);
+        
         //actually move the player in a direction by transforming  or MovePosition to move the player into position
         if(CanMove(direction) && !isMoving)
         {
@@ -87,7 +139,7 @@ public class PlayerController : MonoBehaviour
             StartCoroutine(SmoothMovement(targetPosition));
             // Increase the step count
             stepsSinceLastEncounter++;
-
+            
             // Safe zones disable random encounters
             if (GameSession.Instance != null && GameSession.Instance.IsInSafeArea())
             {
@@ -95,14 +147,13 @@ public class PlayerController : MonoBehaviour
                 stepsSinceLastEncounter = 0;
                 return;
             }
-
+            
             //we will have a random encounter here in the movement for now. 
             //Later it could be added to a overhead game manager
             float random = Random.value;
             randValue = random + amountSinceLastFight;
 
-
-            if (randValue > .99f && !isEncounterLoading && stepsSinceLastEncounter >= encounterBufferSteps)
+            if(randValue > .99f && !isEncounterLoading && stepsSinceLastEncounter >= encounterBufferSteps)
             {
                 Debug.Log("Trigger fight call");
                 amountSinceLastFight = 0f;
@@ -130,7 +181,7 @@ public class PlayerController : MonoBehaviour
         while ((targetPosition - rb.position).sqrMagnitude > 0.001f)
         {
             //move towards final destination slowly
-            Vector2 newPos = Vector2.MoveTowards(rb.position, targetPosition, moveSpeed * Time.fixedDeltaTime);
+            Vector2 newPos = Vector2.MoveTowards(rb.position, targetPosition, moveSpeed * Time.fixedDeltaTime * 0.6f);
             //set up position on the way to final position and move towards it
             rb.MovePosition(newPos);
             //wait for physics to update stuff
@@ -153,5 +204,39 @@ public class PlayerController : MonoBehaviour
             return false;
         }
         return true;
+    }
+
+    private Vector2 GetCardinalDirection(Vector2 input)
+    {
+        if (Mathf.Abs(input.x) > Mathf.Abs(input.y))
+        {
+            return new Vector2(Mathf.Sign(input.x), 0);
+        }
+        else
+        {
+            return new Vector2(0, Mathf.Sign(input.y));
+        }
+    }
+
+    private void UpdateFacingDirection(Vector2 direction)
+    {
+        facingDirection = direction;
+        
+        if(direction == Vector2.up)
+        {
+            spriteRenderer.sprite = facingUp;   
+        }
+        else if(direction == Vector2.down)
+        {
+            spriteRenderer.sprite = facingDown;
+        }
+        else if(direction == Vector2.left)
+        {
+            spriteRenderer.sprite = facingLeft;
+        }
+        else if(direction == Vector2.right)
+        {
+            spriteRenderer.sprite = facingRight;
+        }
     }
 }

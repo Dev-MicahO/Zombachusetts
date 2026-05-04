@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6b4c8011419bc24da7c059cb53a5836, type: 3}
+  m_Name: RubyDagger
+  m_EditorClassIdentifier: Assembly-CSharp::NPCDialogue
+  npcName: Ruby Dagger
+  npcPortrait: {fileID: 1719222314295598603, guid: 15163335361c5b945a94081bf0ec1166, type: 3}
+  dialogueLines:
+  - When you pick up the dagger you can feel it's vile evil
+  - You can sense you will do more damage to monsters now
+  autoProgressLines: 0101
+  autoProgressDelay: 2.5
+  typingSpeed: 0.05
+  voiceSound: {fileID: 0}
+  voicePitch: 1
+  destroydialogueLines: []
+  destroyAutoProgressLines: 
+  npcItem: Ruby Dagger

@@ -2590,8 +2590,8 @@ Transform:
   m_GameObject: {fileID: 463577390}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 3.18, y: 0.98, z: 0}
-  m_LocalScale: {x: 0.25, y: 0.2, z: 1}
+  m_LocalPosition: {x: 0.17, y: 1.15, z: 0}
+  m_LocalScale: {x: 0.25, y: 0.25, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 641285924}
@@ -2610,10 +2610,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unit
   unitName: Big Bam
-  maxHealth: 175
+  maxHealth: 125
   currentHealth: 0
-  minDamage: 15
-  maxDamage: 25
+  minDamage: 25
+  maxDamage: 30
   isDefending: 0
 --- !u!212 &463577393
 SpriteRenderer:
@@ -2664,7 +2664,7 @@ SpriteRenderer:
   m_SortingLayer: 2
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: -3062144921903356401, guid: cf7a5bef9278cfd44aa51f2d2080061e, type: 3}
+  m_Sprite: {fileID: 397637362090497469, guid: 0bf45b0c767154e4a84c8f5f35b149c6, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -3002,7 +3002,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unit
   unitName: Prof K.
-  maxHealth: 300
+  maxHealth: 950
   currentHealth: 0
   minDamage: 25
   maxDamage: 35
@@ -3256,12 +3256,12 @@ MonoBehaviour:
   caveXPPerEnemy: 50
   cityXPPerEnemy: 90
   forestEnemyHealthMultiplier: 1
-  caveEnemyHealthMultiplier: 1.5
-  cityEnemyHealthMultiplier: 2
-  forestEnemyDamageMultiplier: 1
-  caveEnemyDamageMultiplier: 1.5
-  cityEnemyDamageMultiplier: 2
-  fleeSuccessChance: 0.7
+  caveEnemyHealthMultiplier: 2.5
+  cityEnemyHealthMultiplier: 3.5
+  forestEnemyDamageMultiplier: 0.5
+  caveEnemyDamageMultiplier: 1.25
+  cityEnemyDamageMultiplier: 1.75
+  fleeSuccessChance: 0.85
   bleedDamage: 5
   bleedChancePercent: 30
   bleedDuration: 2
@@ -4467,7 +4467,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unit
   unitName: The Wife
-  maxHealth: 300
+  maxHealth: 1000
   currentHealth: 0
   minDamage: 20
   maxDamage: 30
@@ -4499,8 +4499,8 @@ Transform:
   m_GameObject: {fileID: 814911904}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.17, y: 1.15, z: 0}
-  m_LocalScale: {x: 0.25, y: 0.25, z: 1}
+  m_LocalPosition: {x: 3.18, y: 0.98, z: 0}
+  m_LocalScale: {x: 0.25, y: 0.2, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2119487931}
@@ -4521,8 +4521,8 @@ MonoBehaviour:
   unitName: Old Man
   maxHealth: 80
   currentHealth: 0
-  minDamage: 15
-  maxDamage: 25
+  minDamage: 40
+  maxDamage: 60
   isDefending: 0
 --- !u!212 &814911907
 SpriteRenderer:
@@ -4573,7 +4573,7 @@ SpriteRenderer:
   m_SortingLayer: 2
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 397637362090497469, guid: 0bf45b0c767154e4a84c8f5f35b149c6, type: 3}
+  m_Sprite: {fileID: -3062144921903356401, guid: cf7a5bef9278cfd44aa51f2d2080061e, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -8971,8 +8971,8 @@ Transform:
   m_GameObject: {fileID: 1419309661}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.80619997, y: 0.77985, z: 1}
+  m_LocalPosition: {x: 0, y: 0.58, z: 0}
+  m_LocalScale: {x: 1.2062, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1152128891}
@@ -8991,7 +8991,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unit
   unitName: Prof R.
-  maxHealth: 200
+  maxHealth: 800
   currentHealth: 0
   minDamage: 50
   maxDamage: 55
@@ -9045,7 +9045,7 @@ SpriteRenderer:
   m_SortingLayer: 2
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 10911, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: -1329215546830522578, guid: 813da5b716d4be844989c28c16463778, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0

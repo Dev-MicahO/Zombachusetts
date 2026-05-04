@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6b4c8011419bc24da7c059cb53a5836, type: 3}
+  m_Name: Brain
+  m_EditorClassIdentifier: Assembly-CSharp::NPCDialogue
+  npcName: Suspicous Brain
+  npcPortrait: {fileID: -6434906310873938667, guid: 8eb808c0707431c419e0d37de246b1be, type: 3}
+  dialogueLines:
+  - I really hope thats not a actual human brain
+  autoProgressLines: 01
+  autoProgressDelay: 2.5
+  typingSpeed: 0.05
+  voiceSound: {fileID: 0}
+  voicePitch: 1
+  destroydialogueLines: []
+  destroyAutoProgressLines: 
+  npcItem: Suspicous Brain

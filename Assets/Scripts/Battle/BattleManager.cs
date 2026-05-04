@@ -324,8 +324,8 @@ public class BattleManager : MonoBehaviour
     public int cityXPPerEnemy = 90;
 
     public float forestEnemyHealthMultiplier = 1.0f;
-    public float caveEnemyHealthMultiplier = 1.5f;
-    public float cityEnemyHealthMultiplier = 2.0f;
+    public float caveEnemyHealthMultiplier = 2.5f;
+    public float cityEnemyHealthMultiplier = 4.0f;
 
     public float forestEnemyDamageMultiplier = 1.0f;
     public float caveEnemyDamageMultiplier = 1.5f;
@@ -480,6 +480,7 @@ public class BattleManager : MonoBehaviour
         if (GameSession.Instance != null)
         {
             isRandomEncounterBattle = GameSession.Instance.isRandomEncounter;
+            isScriptedBossFight = GameSession.Instance.isFinalBossFight;
         }
         // Actually add good logic for setitng player health
         if (GameSession.Instance != null)
@@ -492,6 +493,10 @@ public class BattleManager : MonoBehaviour
         if (isRandomEncounterBattle)
         {
             SetupRandomEncounterBattle();
+        }
+        else if (isScriptedBossFight)
+        {
+            SetupScriptedBossFight();
         }
         else
         {
@@ -1113,6 +1118,8 @@ public class BattleManager : MonoBehaviour
         zombieObject.SetActive(false);
         zombie2Object.SetActive(false);
         zombie3Object.SetActive(false);
+        partyMember2Object.SetActive(false);
+        partyMember3Object.SetActive(false);
 
         wifeObject.SetActive(false);
         wifeUIObject.SetActive(false);
@@ -1127,10 +1134,11 @@ public class BattleManager : MonoBehaviour
         yield return StartCoroutine(ShowTransitionDialogue("Duncan sheds a tear. \nas he sees the remnants \nof the one he once loved.", 2.5f));
         if (skipCutsceneRequested) goto SKIP;
 
-        yield return StartCoroutine(ShowTransitionDialogue(wifeUnit.unitName + " now stands before you.", 2.5f));
+        yield return StartCoroutine(ShowTransitionDialogue(wifeUnit.unitName + " now stands before you. \n For the final time..", 2.5f));
         if (skipCutsceneRequested) goto SKIP;
-        
-        yield return StartCoroutine(ShowTransitionDialogue("For the final time..", 2.5f));
+
+
+        yield return StartCoroutine(ShowTransitionDialogue("Your allies abandon you,\n Leaving this battle up to you.", 2.5f));
         if (skipCutsceneRequested) goto SKIP;
 
         dialogueText.text = "";
@@ -1527,9 +1535,12 @@ public class BattleManager : MonoBehaviour
         wifeObject.SetActive(false);
         wifeUIObject.SetActive(false);
 
-        // Hide random encounter companions for now
-        partyMember2Object.SetActive(false);
-        partyMember3Object.SetActive(false);
+        // Show party members in boss fight
+        bool hasPM2 = GameSession.Instance != null && GameSession.Instance.hasPartyMember2;
+        bool hasPM3 = GameSession.Instance != null && GameSession.Instance.hasPartyMember3;
+
+        partyMember2Object.SetActive(hasPM2);
+        partyMember3Object.SetActive(hasPM3);
 
         // Show scripted boss 1
         scriptedBoss1Object.SetActive(true);
@@ -2290,13 +2301,13 @@ public class BattleManager : MonoBehaviour
         
 
         if (enemyUnit.IsDead())
-        {
+        {    
             if (TryHandleScriptedBossDefeat())
                 yield break;
-                
+
             // RANDOM ENCOUNTER END
             if (isRandomEncounterBattle)
-            {
+            {   
                 if (AreAllEnemiesDefeated())
                 {
                     ApplyRandomEncounterVictoryRewards();
@@ -2304,6 +2315,7 @@ public class BattleManager : MonoBehaviour
                     StartCoroutine(ReturnToOverworldAfterBattle());
                     yield break;
                 }
+
                 // SCRIPTED BOSS FIGHT PHASES
                 if (isScriptedBossFight)
                 {
@@ -2529,11 +2541,14 @@ public class BattleManager : MonoBehaviour
             SetBattleText("Choose an ally target.");
     }
 
-       // Called when the Attack button is pressed
+    // Called when the Attack button is pressed
     public void OnAttackButton()
     {
         if (state != BattleState.PLAYERTURN)
             return;
+
+        // Prevent double clicking the attack button
+        SetActionButtonsInteractable(false);
 
         List<Unit> enemies = GetLivingEnemies();
 
@@ -2763,6 +2778,8 @@ public class BattleManager : MonoBehaviour
     {
         if (index < 0 || index >= currentSelectableTargets.Count)
             return;
+        
+        SetActionButtonsInteractable(false);
 
         Unit selectedTarget = currentSelectableTargets[index];
 
@@ -2967,10 +2984,10 @@ public class BattleManager : MonoBehaviour
         if (!bossFightStarted && wifeObject.activeSelf && !wifeUnit.IsDead())
             partyMembers.Add(wifeUnit);
         
-        if (!bossFightStarted && partyMember2Object != null && partyMember2Object.activeSelf && !partyMember2Unit.IsDead())
+        if (partyMember2Object != null && partyMember2Object.activeSelf && !partyMember2Unit.IsDead())
         partyMembers.Add(partyMember2Unit);
 
-        if (!bossFightStarted && partyMember3Object != null && partyMember3Object.activeSelf && !partyMember3Unit.IsDead())
+        if (partyMember3Object != null && partyMember3Object.activeSelf && !partyMember3Unit.IsDead())
         partyMembers.Add(partyMember3Unit);
     
 
@@ -2989,6 +3006,13 @@ public class BattleManager : MonoBehaviour
     {
         BeginPlayerAction(true);
         ClearExpiredStunResistanceAfterPlayerAction();
+    
+        // Extra safety: if the attack came from the target panel,
+        // make sure target buttons are not still usable.
+        currentSelectableTargets.Clear();
+        currentTargetSelectionType = TargetSelectionType.None;
+        pendingTargetAction = PendingTargetAction.None;
+
         yield return new WaitForSeconds(0.5f);
 
         enemyUnit = target;
@@ -3002,9 +3026,13 @@ public class BattleManager : MonoBehaviour
         if (thiefStealthed && thiefNextAttackDoubleDamage)
         {
             damage *= 2;
+
             thiefStealthed = false;
             stealthTurnsRemaining = 0;
             thiefNextAttackDoubleDamage = false;
+
+            SetBattleText("You strike from stealth!");
+            yield return new WaitForSeconds(0.5f);
         }
 
         if (PlayerFKActive)
@@ -3749,7 +3777,7 @@ public class BattleManager : MonoBehaviour
     IEnumerator PartyMemberTurns()
     {
         //if (isRandomEncounterBattle || bossFightStarted)
-        if(bossFightStarted)
+        if(bossFightStarted && !isScriptedBossFight)
         {
             state = BattleState.ENEMYTURN;
             StartCoroutine(EnemyGroupTurn());
@@ -3812,6 +3840,33 @@ public class BattleManager : MonoBehaviour
 
             if (enemyUnit.IsDead())
             {
+                
+                if (isRandomEncounterBattle)
+                {
+                    HideDefeatedEnemies();
+
+                    if (AreAllEnemiesDefeated())
+                    {
+                        ApplyRandomEncounterVictoryRewards();
+                        state = BattleState.WON;
+                        StartCoroutine(ReturnToOverworldAfterBattle());
+                        yield break;
+                    }
+
+                    List<Unit> remainingEnemies = GetLivingEnemies();
+
+                    if (remainingEnemies.Count > 0)
+                    {
+                        enemyUnit = remainingEnemies[0];
+                        UpdateHPText();
+                    }
+
+                    SetBattleText("Enemy defeated!");
+                    yield return new WaitForSeconds(1f);
+
+                    continue;
+                }
+
                 if (TryHandleScriptedBossDefeat())
                     yield break;
 
@@ -4112,8 +4167,7 @@ public class BattleManager : MonoBehaviour
         UpdateSPUI();
     }
     #endregion
-   
-   #region Update Loop and Debug Commands 
+    #region Update Loop and Debug Commands 
    // Smoothly animates HP bars every frame toward their target values
     void Update()
     {
@@ -4352,7 +4406,8 @@ public class BattleManager : MonoBehaviour
             yield return new WaitForSeconds(2f);
 
             if (GameSession.Instance != null)
-            {
+            {   
+                GameSession.Instance.isFinalBossFight = false;
                 GameSession.Instance.isRandomEncounter = false;
             }
 
@@ -4379,6 +4434,14 @@ public class BattleManager : MonoBehaviour
 
                 Debug.Log("Tutorial battle completed.");
             }
+
+            if (isScriptedBossFight && GameSession.Instance != null)
+            {
+                GameSession.Instance.isFinalBossFight = false;
+                GameSession.Instance.isRandomEncounter = false;
+                GameSession.Instance.FinalBossDefeated = true;
+                Debug.Log("Final boss fight completed.");
+            }
         }
         else if (state == BattleState.LOST)
         {
@@ -4399,11 +4462,18 @@ public class BattleManager : MonoBehaviour
 
         yield return new WaitForSeconds(2f);
 
+        string sceneToLoad = "PlayerHouse";
+
+        if (isScriptedBossFight)
+        {
+            sceneToLoad = "TheSchool";
+        }
+
         if (GameSession.Instance != null)
         {
-            GameSession.Instance.loadingTargetScene = "PlayerHouse";
+            GameSession.Instance.loadingTargetScene = sceneToLoad;
             GameSession.Instance.loadingReturnToPreviousScene = false;
-            GameSession.Instance.loadingScreenDuration = 1.0f;
+            GameSession.Instance.loadingScreenDuration = 0.5f;
         }
 
         UnityEngine.SceneManagement.SceneManager.LoadScene("Loading");
