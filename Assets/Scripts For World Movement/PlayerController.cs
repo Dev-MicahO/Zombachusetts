@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using UnityEngine.SceneManagement;
 
 
 public class PlayerController : MonoBehaviour
@@ -55,7 +56,7 @@ public class PlayerController : MonoBehaviour
     }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
-  void Start()
+    void Start()
     {
         UpdateFacingDirection(Vector2.down);
     }
@@ -79,6 +80,12 @@ public class PlayerController : MonoBehaviour
         GameSession.Instance.returnPlayerPosition = transform.position;
         GameSession.Instance.hasReturnPosition = true;
 
+        // Save the exact overworld scene we came from.
+        // This fixes battle return after loading a save file.
+        string currentSceneName = SceneManager.GetActiveScene().name;
+        GameSession.Instance.randomEncounterReturnScene = currentSceneName;
+        GameSession.Instance.currentOverworldScene = currentSceneName;
+
         // Send player to loading screen first, then Loading scene sends them to battle.
         GameSession.Instance.loadingTargetScene = "Battlescene";
         GameSession.Instance.loadingReturnToPreviousScene = false;
@@ -86,7 +93,6 @@ public class PlayerController : MonoBehaviour
 
         SceneChanger.Instance.LoadScene("Loading");
     }
-
     private void Update()
     {   
         

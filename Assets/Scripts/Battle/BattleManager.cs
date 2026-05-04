@@ -4341,19 +4341,23 @@ public class BattleManager : MonoBehaviour
     waits for a moment, then loads the overworld scene specified in the GameSession.
     */
     IEnumerator ReturnToOverworldAfterBattle()
-{
-    if (state == BattleState.FLED)
     {
-        SetBattleText("You fled from battle and recovered " + randomEncounterFleeHeal + " HP!");
-    }
-    else if (state == BattleState.WON)
-    {
-        SetBattleText("You defeated the enemies! Gained " + (GetCurrentXPPerEnemy() * currentRandomEncounterEnemyCount) + " XP and recovered " + (randomEncounterVictoryHeal * currentRandomEncounterEnemyCount)  + " HP!");
-    }
-    else if (state == BattleState.LOST)
-    {
-        SetBattleText("You were defeated...");
-    }
+        if (state == BattleState.FLED)
+        {
+            SetBattleText("You fled from battle and recovered " + randomEncounterFleeHeal + " HP!");
+        }
+        else if (state == BattleState.WON)
+        {
+            SetBattleText("You defeated the enemies! Gained "
+                + (GetCurrentXPPerEnemy() * currentRandomEncounterEnemyCount)
+                + " XP and recovered "
+                + (randomEncounterVictoryHeal * currentRandomEncounterEnemyCount)
+                + " HP!");
+        }
+        else if (state == BattleState.LOST)
+        {
+            SetBattleText("You were defeated...");
+        }
 
         yield return new WaitForSeconds(2f);
 
@@ -4362,30 +4366,51 @@ public class BattleManager : MonoBehaviour
             GameSession.Instance.isRandomEncounter = false;
         }
 
+        // Special case: debug random encounter launched from tutorial
         if (debugRandomEncounterFromTutorial)
-        {   
+        {
             debugRandomEncounterFromTutorial = false;
-            
+
             if (GameSession.Instance != null)
             {
                 GameSession.Instance.tutorialBattleCompleted = true;
                 GameSession.Instance.isRandomEncounter = false;
-            }
-
-            SceneChanger.Instance.LoadScene("PlayerHouse");
-            
-        }
-        else
-        {
-            if (GameSession.Instance != null)
-            {
-                GameSession.Instance.loadingReturnToPreviousScene = true;
-                GameSession.Instance.loadingTargetScene = "";
-                GameSession.Instance.loadingScreenDuration = 1.0f;
+                GameSession.Instance.loadingTargetScene = "PlayerHouse";
+                GameSession.Instance.loadingReturnToPreviousScene = false;
+                GameSession.Instance.loadingScreenDuration = 0.25f;
             }
 
             UnityEngine.SceneManagement.SceneManager.LoadScene("Loading");
+            yield break;
         }
+
+        // Normal random encounter return
+        string returnScene = "PlayerHouse";
+
+        if (GameSession.Instance != null)
+        {
+            if (!string.IsNullOrEmpty(GameSession.Instance.randomEncounterReturnScene))
+            {
+                returnScene = GameSession.Instance.randomEncounterReturnScene;
+            }
+            else if (!string.IsNullOrEmpty(GameSession.Instance.currentOverworldScene))
+            {
+                returnScene = GameSession.Instance.currentOverworldScene;
+            }
+
+            Debug.Log("Returning from random encounter to scene: " + returnScene);
+
+            GameSession.Instance.isRandomEncounter = false;
+            GameSession.Instance.loadingTargetScene = returnScene;
+            GameSession.Instance.loadingReturnToPreviousScene = false;
+            GameSession.Instance.loadingScreenDuration = 0.25f;
+        }
+        else
+        {
+            Debug.LogWarning("GameSession missing. Returning to PlayerHouse by fallback.");
+        }
+
+        UnityEngine.SceneManagement.SceneManager.LoadScene("Loading");
     }
 
 
