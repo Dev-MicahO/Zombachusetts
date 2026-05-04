@@ -34,6 +34,35 @@ public class mainMenu : MonoBehaviour
         controls.Disable();
     }
 
+    public void PlayButton()
+    {
+        SceneChanger.Instance.LoadScene("Battlescene");
+    }
+
+    // button code for the quit button on the main menu
+    public void QuitButton()
+    {
+        Debug.Log("exited");
+        Application.Quit();
+    }
+
+    // button code for the back button on the settings menu 
+    public void BackButton()
+    {
+        SceneChanger.Instance.LoadScene("main menu");
+    }
+
+    // button code for the quit to desktop button in the pause menu
+    public void QuitToDesktop()
+    {
+        PlayerPrefs.Save();
+
+        Debug.Log("Game Saved!");
+
+        Application.Quit();
+        
+    }
+
     private void ResetButton(Animator animator)
     {
         if (animator == null) return;

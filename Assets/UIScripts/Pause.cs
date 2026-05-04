@@ -73,5 +73,26 @@ public class Pause : MonoBehaviour
         Time.timeScale = 1f;
     }
 
+      public void QuitToDesktop()
+    {
+        PlayerPrefs.Save();
+
+        Debug.Log("Game Saved!");
+
+        Application.Quit();
+        
+    }
+
+    // button code for the quit to title button in the pause menu 
+    public void QuitToMenu()
+    {
+        Time.timeScale = 1f;
+        PlayerPrefs.Save();
+
+        Debug.Log("Game Saved!");
+
+        SceneChanger.Instance.LoadScene("main menu");
+    }
+
     
 }

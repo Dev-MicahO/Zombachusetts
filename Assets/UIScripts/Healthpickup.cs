@@ -6,21 +6,22 @@ public class HealPickup : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
+        Debug.Log("HealPickup triggered by: " + other.name);
+
         if (!other.CompareTag("Player"))
             return;
 
         if (GameSession.Instance == null)
             return;
 
-        if (GameSession.Instance.playerCurrentHP < GameSession.Instance.playerMaxHP)
+        if (GameSession.Instance.playerCurrentHP >= GameSession.Instance.playerMaxHP)
         {
-            GameSession.Instance.HealPlayer(healAmount);
-            Debug.Log("Health pack collected. HP is now " + GameSession.Instance.playerCurrentHP);
-            Destroy(gameObject);
+            Debug.Log("Player is full HP, so pickup was not consumed.");
+            return;
         }
-        else
-        {
-            Debug.Log("Player is already at full HP.");
-        }
+
+        GameSession.Instance.HealPlayer(healAmount);
+        Debug.Log("Health pack collected.");
+        Destroy(gameObject);
     }
 }
