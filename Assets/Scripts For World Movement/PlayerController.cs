@@ -131,46 +131,6 @@ public class PlayerController : MonoBehaviour
 
     }
 
-
-    private void Update()
-    {   
-        
-        if (!isMoving)
-        {
-            
-            Vector2 currentInput = controls.World.Movement.ReadValue<Vector2>();
-
-            if (currentInput != Vector2.zero)
-            {
-                Vector2 direction = GetCardinalDirection(currentInput);
-                Move(direction);
-            }
-        }
-    }
-
-    private void Interact()
-    {
-        Debug.Log("E PRESSED");
-        Vector3 positionInFrontOfPlayer = transform.position + (Vector3)facingDirection;
-        //Vector3Int frontTile = groundTileMap.WorldToCell(positionInFrontOfPlayer);
-
-        Collider2D hit = Physics2D.OverlapPoint(positionInFrontOfPlayer);
-
-        if(hit != null)
-        {
-            IInteractable interactable = hit.GetComponent(typeof(IInteractable)) as IInteractable;
-
-            if(interactable != null && interactable.CanInteract())
-            {
-                interactable.Interact();
-                return;
-            }
-        }
-        
-
-    }
-
-
     private void Move(Vector2 direction) 
     {
         UpdateFacingDirection(direction);
