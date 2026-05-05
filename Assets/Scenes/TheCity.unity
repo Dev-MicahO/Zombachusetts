@@ -1876,6 +1876,101 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 564463831}
   m_CullTransparentMesh: 1
+--- !u!1 &606678227
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 606678230}
+  - component: {fileID: 606678229}
+  - component: {fileID: 606678228}
+  m_Layer: 0
+  m_Name: LevelMoveToCave
+  m_TagString: Untagged
+  m_Icon: {fileID: 6519382022992737161, guid: 0000000000000000d000000000000000, type: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &606678228
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 606678227}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bd2663d9bf36284e81ebebebc961278, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LevelMoveCave
+  sceneToLoad: Cave
+  returnSpawnPosition: {x: -42.5, y: 7.47}
+  useLoadingScreen: 1
+  loadingScreenDuration: 0.25
+--- !u!61 &606678229
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 606678227}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 1
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0, y: 0}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0, y: 0}
+    oldSize: {x: 0, y: 0}
+    newSize: {x: 0, y: 0}
+    adaptiveTilingThreshold: 0
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  m_Size: {x: 1, y: 1}
+  m_EdgeRadius: 0
+--- !u!4 &606678230
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 606678227}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 13.615, y: -0.5, z: 1}
+  m_LocalScale: {x: 0.9, y: 0.9, z: 6}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &608805863
 GameObject:
   m_ObjectHideFlags: 0
@@ -3971,10 +4066,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 1221998831}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f15e872c236448a4387c2f9550e1cea2, type: 3}
+  m_Script: {fileID: 11500000, guid: 9bd2663d9bf36284e81ebebebc961278, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelMoveCave
-  sceneBuildScene: TheSchool
+  sceneToLoad: TheSchool
+  returnSpawnPosition: {x: 11.5, y: -4.5}
+  useLoadingScreen: 1
+  loadingScreenDuration: 0.25
 --- !u!61 &1221998833
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -11721,8 +11819,8 @@ Tilemap:
   - first: {x: 13, y: -1, z: 0}
     second:
       serializedVersion: 2
-      m_TileIndex: 5
-      m_TileSpriteIndex: 5
+      m_TileIndex: 3
+      m_TileSpriteIndex: 0
       m_TileMatrixIndex: 0
       m_TileColorIndex: 0
       m_TileObjectToInstantiateIndex: 65535
@@ -18046,11 +18144,11 @@ Tilemap:
     m_Data: {fileID: 11400000, guid: 3d3cb248a67004843aa018dfabc56b15, type: 2}
   - m_RefCount: 8
     m_Data: {fileID: 11400000, guid: 26e3827c0345db14193e94b582cfcbde, type: 2}
-  - m_RefCount: 0
-    m_Data: {fileID: 0}
+  - m_RefCount: 1
+    m_Data: {fileID: 11400000, guid: d950175a073e8f545b24436873b3bb25, type: 2}
   - m_RefCount: 1060
     m_Data: {fileID: 11400000, guid: 53c030df11bb9ea49a1de12f8e7a4cc2, type: 2}
-  - m_RefCount: 161
+  - m_RefCount: 160
     m_Data: {fileID: 11400000, guid: 75022792ef3874946ab26d3eca36657e, type: 2}
   - m_RefCount: 73
     m_Data: {fileID: 11400000, guid: 8dcf1cf7676ceb04c8ebb53d0cc75fb9, type: 2}
@@ -18059,8 +18157,8 @@ Tilemap:
   - m_RefCount: 1
     m_Data: {fileID: 11400000, guid: 601df40df638242468c042735878ccb6, type: 2}
   m_TileSpriteArray:
-  - m_RefCount: 0
-    m_Data: {fileID: 0}
+  - m_RefCount: 1
+    m_Data: {fileID: 5866251980999433318, guid: ac26f29f49b56f14687f128808742ac6, type: 3}
   - m_RefCount: 1
     m_Data: {fileID: -3009524396922607949, guid: e9fdcf19fb1696a4487f219d606ca9d0, type: 3}
   - m_RefCount: 8
@@ -18069,7 +18167,7 @@ Tilemap:
     m_Data: {fileID: -565699271656573762, guid: 2d56b934482c6b14d867578f0077005b, type: 3}
   - m_RefCount: 1060
     m_Data: {fileID: 4685125372747590824, guid: 6cea9c414ec8fcb469f11d15cc5f03ee, type: 3}
-  - m_RefCount: 161
+  - m_RefCount: 160
     m_Data: {fileID: 5933117027349701568, guid: 36094b6665870df4aa397283d6414e89, type: 3}
   - m_RefCount: 73
     m_Data: {fileID: -2569749771639129670, guid: 9c9eaf8bca101f946a4ea92c7b1c6798, type: 3}
@@ -28456,6 +28554,7 @@ SceneRoots:
   - {fileID: 1886558486}
   - {fileID: 2014413337}
   - {fileID: 1221998834}
+  - {fileID: 606678230}
   - {fileID: 1680171406}
   - {fileID: 833479435}
   - {fileID: 294078292}

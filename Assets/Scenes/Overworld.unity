@@ -8842,10 +8842,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 570573826}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f15e872c236448a4387c2f9550e1cea2, type: 3}
+  m_Script: {fileID: 11500000, guid: 9bd2663d9bf36284e81ebebebc961278, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelMoveCave
-  sceneBuildScene: PlayerHouse
+  sceneToLoad: PlayerHouse
+  returnSpawnPosition: {x: -0.5, y: -0.5}
+  useLoadingScreen: 1
+  loadingScreenDuration: 0.25
 --- !u!61 &570573828
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -9055,8 +9058,8 @@ Transform:
   m_GameObject: {fileID: 673972234}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 8.5, y: -12.5, z: 1}
-  m_LocalScale: {x: 0.9, y: 0.9, z: 6}
+  m_LocalPosition: {x: 8.5, y: -12.637, z: 1}
+  m_LocalScale: {x: 0.7, y: 0.7, z: 6}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -9070,10 +9073,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 673972234}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f15e872c236448a4387c2f9550e1cea2, type: 3}
+  m_Script: {fileID: 11500000, guid: 9bd2663d9bf36284e81ebebebc961278, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelMoveCave
-  sceneBuildScene: Cave
+  sceneToLoad: Cave
+  returnSpawnPosition: {x: 0.5, y: -1.53}
+  useLoadingScreen: 1
+  loadingScreenDuration: 0.25
 --- !u!1 &690604462
 GameObject:
   m_ObjectHideFlags: 0
@@ -11727,10 +11733,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 1587278710}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f15e872c236448a4387c2f9550e1cea2, type: 3}
+  m_Script: {fileID: 11500000, guid: 9bd2663d9bf36284e81ebebebc961278, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelMoveCave
-  sceneBuildScene: TheSchool
+  sceneToLoad: TheSchool
+  returnSpawnPosition: {x: 11.5, y: -4.5}
+  useLoadingScreen: 1
+  loadingScreenDuration: 0.25
 --- !u!61 &1587278712
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -12100,10 +12109,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 1664380326}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f15e872c236448a4387c2f9550e1cea2, type: 3}
+  m_Script: {fileID: 11500000, guid: 9bd2663d9bf36284e81ebebebc961278, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelMoveCave
-  sceneBuildScene: Cave
+  sceneToLoad: Cave
+  returnSpawnPosition: {x: 0.5, y: -1.53}
+  useLoadingScreen: 1
+  loadingScreenDuration: 0.25
 --- !u!61 &1664380328
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -12308,7 +12320,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1732768051}
   - component: {fileID: 1732768050}
-  - component: {fileID: 1732768049}
+  - component: {fileID: 1732768052}
   m_Layer: 0
   m_Name: LevelMoveIntoHouse
   m_TagString: Untagged
@@ -12316,19 +12328,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1732768049
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1732768048}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f15e872c236448a4387c2f9550e1cea2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::LevelMoveCave
-  sceneBuildScene: PlayerHouse
 --- !u!61 &1732768050
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -12390,6 +12389,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1732768052
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1732768048}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bd2663d9bf36284e81ebebebc961278, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ReturnToPreviousScene
+  sceneToLoad: PlayerHouse
+  returnSpawnPosition: {x: 0.5, y: -3.5}
+  useLoadingScreen: 1
+  loadingScreenDuration: 0.25
 --- !u!1 &1764300426
 GameObject:
   m_ObjectHideFlags: 0
@@ -12492,10 +12507,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 1778942231}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f15e872c236448a4387c2f9550e1cea2, type: 3}
+  m_Script: {fileID: 11500000, guid: 9bd2663d9bf36284e81ebebebc961278, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelMoveCave
-  sceneBuildScene: TheCity
+  sceneToLoad: TheCity
+  returnSpawnPosition: {x: 12.5, y: -0.5}
+  useLoadingScreen: 1
+  loadingScreenDuration: 0.25
 --- !u!61 &1778942233
 BoxCollider2D:
   m_ObjectHideFlags: 0

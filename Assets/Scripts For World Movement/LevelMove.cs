@@ -1,26 +1,60 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
-public class LevelMoveCave : MonoBehaviour
+public class LevelMove : MonoBehaviour
 {
-    [SerializeField] string sceneBuildScene;
-    //should change this script later to use don'tdestroyonload to save player data
+    // Script to allow the player to move to a different level
+    [Header("Scene To Load")]
+    public string sceneToLoad;
 
-    void OnTriggerEnter2D(Collider2D other) 
+    [Header("Where Player Should Spawn In That Scene")]
+    public Vector2 returnSpawnPosition;
+
+    [Header("Loading Screen")]
+    public bool useLoadingScreen = true;
+    public float loadingScreenDuration = 0.25f;
+
+    private bool isLoading = false;
+
+    private void OnTriggerEnter2D(Collider2D other)
     {
-        Debug.Log(other.name);
+        if (isLoading)
+            return;
 
-        if(other.tag == ("Player"))
+        if (!other.CompareTag("Player"))
+            return;
+
+        if (GameSession.Instance == null)
         {
-            //player entered, so move level
-            print("Switching Scene to " + sceneBuildScene);
-            //we only want to load one scene at a time so we use LoadSceneMode.Single argument, should be more efficient 
-            //then many loaded at the same time
-            //SceneManager.LoadScene(sceneBuildScene, LoadSceneMode.Single);
-            SceneChanger.Instance.LoadScene(sceneBuildScene);
+            Debug.LogError("ReturnToPreviousScene: GameSession instance not found.");
+            return;
+        }
 
+        isLoading = true;
+
+        // Tell PlayerController in the next scene where to place the player.
+        GameSession.Instance.returnPlayerPosition = new Vector3(
+            returnSpawnPosition.x,
+            returnSpawnPosition.y,
+            other.transform.position.z
+        );
+
+        GameSession.Instance.hasReturnPosition = true;
+
+        // Keep scene tracking consistent for battle returns/saves.
+        GameSession.Instance.currentOverworldScene = sceneToLoad;
+        GameSession.Instance.randomEncounterReturnScene = sceneToLoad;
+
+        if (useLoadingScreen)
+        {
+            GameSession.Instance.loadingTargetScene = sceneToLoad;
+            GameSession.Instance.loadingReturnToPreviousScene = false;
+            GameSession.Instance.loadingScreenDuration = loadingScreenDuration;
+
+            UnityEngine.SceneManagement.SceneManager.LoadScene("Loading");
+        }
+        else
+        {
+            UnityEngine.SceneManagement.SceneManager.LoadScene(sceneToLoad);
         }
     }
 }

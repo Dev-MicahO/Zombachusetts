@@ -6056,7 +6056,7 @@ GameObject:
   m_Component:
   - component: {fileID: 902638120}
   - component: {fileID: 902638119}
-  - component: {fileID: 902638118}
+  - component: {fileID: 902638121}
   m_Layer: 0
   m_Name: LevelMoveOutSideHouse
   m_TagString: Untagged
@@ -6064,19 +6064,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &902638118
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 902638117}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f15e872c236448a4387c2f9550e1cea2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::LevelMoveCave
-  sceneBuildScene: Overworld
 --- !u!61 &902638119
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -6138,6 +6125,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &902638121
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 902638117}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bd2663d9bf36284e81ebebebc961278, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ReturnToPreviousScene
+  sceneToLoad: Overworld
+  returnSpawnPosition: {x: -0.54, y: -0.54}
+  useLoadingScreen: 1
+  loadingScreenDuration: 0.25
 --- !u!1 &977760490
 GameObject:
   m_ObjectHideFlags: 0
