@@ -1,8 +1,18 @@
 using UnityEngine;
 // Unit Script for both Player and Enemy, contains health, damage, and other stats. this is self explanatory.
+
+
+
+
+public enum EnemyType { None, Creature, Goop, Green, First_Boss};
+
+
+
 public class Unit : MonoBehaviour
 {
     public string unitName;
+
+    public EnemyType enemyType = EnemyType.None;
 
     public int maxHealth = 100;
     public int currentHealth;
@@ -11,6 +21,8 @@ public class Unit : MonoBehaviour
     public int maxDamage = 25;
 
     public bool isDefending = false;
+
+
 
     // Initialize current health to max health at the start of the game
     void Awake()

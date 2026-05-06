@@ -42,6 +42,9 @@ public class BattleManager : MonoBehaviour
     public Transform enemySlot2;
     public Transform enemySlot3;
 
+
+    
+
    // Sprites  
     [Header("Player Sprites")]
     public SpriteRenderer playerSpriteRenderer;
@@ -1300,7 +1303,7 @@ public class BattleManager : MonoBehaviour
         if (enemyCount == 3)
             ApplyRandomVisualToEnemy(zombie3Object, zombie3Unit, visualSet, enemyCount, 3);
     }
-
+//CHANGE THE SPRITE TO RANDOM
     void ApplyRandomVisualToEnemy(GameObject enemyObject, Unit enemyUnit, EnemyVisualData[] visualSet, int enemyCount, int enemyNumber)
     {
         if (enemyObject == null || enemyUnit == null)
@@ -1309,12 +1312,51 @@ public class BattleManager : MonoBehaviour
         if (visualSet == null || visualSet.Length == 0)
             return;
 
+            
+
+
+
+
+
         EnemyVisualData chosenVisual = visualSet[Random.Range(0, visualSet.Length)];
 
         SpriteRenderer spriteRenderer = enemyObject.GetComponent<SpriteRenderer>();
 
-        if (spriteRenderer != null && chosenVisual.enemySprite != null)
+        if (spriteRenderer != null && chosenVisual.enemySprite != null) {
             spriteRenderer.sprite = chosenVisual.enemySprite;
+
+
+            string fileName = chosenVisual.enemySprite.name.ToLower();
+
+            if (fileName.Contains("goop"))
+        {
+            enemyUnit.enemyType = EnemyType.Goop;
+
+        }
+        else if (fileName.Contains("creature"))
+        {
+            enemyUnit.enemyType = EnemyType.Creature;
+
+        }
+        else if (fileName.Contains("green"))
+        {
+            enemyUnit.enemyType = EnemyType.Green;
+        }
+        else if (fileName.Contains("first_boss"))
+        {
+            enemyUnit.enemyType = EnemyType.First_Boss;
+        }
+
+
+
+
+
+
+
+
+
+        }
+
 
         enemyObject.transform.localScale = chosenVisual.enemyScale;
 
@@ -1540,7 +1582,19 @@ public class BattleManager : MonoBehaviour
         RefreshBattleUIImmediate();
         UpdatePartyMemberHPUI();
 
-        SetBattleText("You have been ambushed!");
+        
+
+        if (enemyUnit.enemyType == EnemyType.Green)
+        {
+            SetBattleText("I'm Green!");
+           
+        }
+        else
+        {
+            SetBattleText("You have been ambushed!");
+        }
+
+        
         ShowActionPanel();
         SetActionButtonsInteractable(true);
     }
@@ -4060,6 +4114,16 @@ public class BattleManager : MonoBehaviour
             yield return StartCoroutine(HandleEnemyStunSkip(enemyUnit));
             yield break;
         }
+    Unit target = GetRandomLivingAlly();
+
+        if (enemyUnit.enemyType == EnemyType.Green)
+        {
+            int drainDamage = enemyUnit.GetDamage()/2;
+            DamageAlly(target, drainDamage, "Drain");
+            enemyUnit.currentHealth = Mathf.Min(enemyUnit.maxHealth, enemyUnit.currentHealth + drainDamage);
+            SetBattleText(enemyUnit.unitName + " drained your life force! It heals for " + drainDamage );
+           
+        }
 
         string attackName = "Enemy attacks!";
         int damage = 0;
@@ -4085,7 +4149,7 @@ public class BattleManager : MonoBehaviour
         SetBattleText(attackName);
         yield return new WaitForSeconds(0.5f);
 
-        Unit target = GetRandomLivingAlly();
+        
 
         // Stealth Logic: Later when companions are added make it target the non stealthed unit.
         if (thiefStealthed && target == playerUnit)
